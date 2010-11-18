@@ -132,7 +132,8 @@ rs_poll_timeout(int unicast_socket, int multicast_socket, int timeout, struct ti
  * EHOSTDOWN, -4 if message is truncated, or -1 on different error.
  */
 ssize_t
-rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t msg_len, uint8_t *ttl)
+rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t msg_len,
+    uint8_t *ttl)
 {
 	char cmsg_buf[CMSG_SPACE(1024)];
 	struct cmsghdr *cmsg;

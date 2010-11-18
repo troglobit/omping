@@ -283,7 +283,8 @@ sf_set_socket_mcast_loop(const struct sockaddr *mcast_addr, int sock, int enable
 		}
 		break;
 	case AF_INET6:
-		if (setsockopt(sock, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &ival, sizeof(ival)) == -1) {
+		if (setsockopt(sock, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &ival,
+		    sizeof(ival)) == -1) {
 			DEBUG_PRINTF("setsockopt IPV6_MULTICAST_LOOP failed");
 
 			return (-1);

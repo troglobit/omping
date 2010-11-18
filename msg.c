@@ -106,7 +106,8 @@ msg_decode(const char *msg, size_t msg_len, struct msg_decoded *decoded)
 		tlv_len = tlv_iter_get_len(&tlv_iter);
 
 		if (logging_get_verbose() >= LOGGING_LEVEL_DEBUG2) {
-			snprintf(debug_str, sizeof(debug_str), "%u:%s:%u:", tlv_iter_get_type(&tlv_iter),
+			snprintf(debug_str, sizeof(debug_str), "%u:%s:%u:",
+			    tlv_iter_get_type(&tlv_iter),
 			    tlv_opt_type_to_str(tlv_iter_get_type(&tlv_iter)), tlv_len);
 		}
 
@@ -192,20 +193,21 @@ msg_decode(const char *msg, size_t msg_len, struct msg_decoded *decoded)
 					case TLV_OPT_TYPE_SERVER_INFO:
 						decoded->request_opt_server_info = 1;
 
-						DEBUG2_PRINTF("%s%u opt %u", debug_str, pos, u16);
+						DEBUG2_PRINTF("%s%zu opt %u", debug_str, pos, u16);
 						break;
 					case TLV_OPT_TYPE_SERVER_TSTAMP:
 						decoded->request_opt_server_tstamp = 1;
 
-						DEBUG2_PRINTF("%s%u opt %u", debug_str, pos, u16);
+						DEBUG2_PRINTF("%s%zu opt %u", debug_str, pos, u16);
 						break;
 					default:
-						DEBUG2_PRINTF("%s%u unknown opt %u", debug_str, pos, u16);
+						DEBUG2_PRINTF("%s%zu unknown opt %u", debug_str,
+						    pos, u16);
 						break;
 					}
 				}
 			} else {
-				DEBUG2_PRINTF("%slen <= 1 || (tlv_len %2 != 0)", debug_str);
+				DEBUG2_PRINTF("%slen <= 1 || (tlv_len %%2 != 0)", debug_str);
 			}
 			break;
 		case TLV_OPT_TYPE_SERVER_INFO:
@@ -352,8 +354,10 @@ msg_query_create(char *msg, size_t msg_len, const struct sockaddr_storage *mcast
 		goto small_buf_err;
 
 	if (client_id) {
-		if (tlv_add(msg, msg_len, &pos, TLV_OPT_TYPE_CLIENT_ID, client_id_len, client_id) == -1)
+		if (tlv_add(msg, msg_len, &pos, TLV_OPT_TYPE_CLIENT_ID, client_id_len,
+		    client_id) == -1) {
 			goto small_buf_err;
+		}
 	}
 
 	if (tlv_add_seq_num(msg, msg_len, &pos, seq_num) == -1)
@@ -432,8 +436,10 @@ msg_response_create(char *msg, size_t msg_len, const struct msg_decoded *msg_dec
 	}
 
 	if (session_id) {
-		if (tlv_add(msg, msg_len, &pos, TLV_OPT_TYPE_SES_ID, session_id_len, session_id) == -1)
+		if (tlv_add(msg, msg_len, &pos, TLV_OPT_TYPE_SES_ID, session_id_len,
+		    session_id) == -1) {
 			goto small_buf_err;
+		}
 	}
 
 	return (pos);

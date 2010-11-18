@@ -41,8 +41,8 @@
  * address, orig_msg is received query message with orig_msg_len, decoded is decoded message,
  * to is sockaddr_storage address of destination, ttl is set TTL and answer_type can specify what
  * type of response to send.
- * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be created
- * (usually due to small message buffer)
+ * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be
+ * created (usually due to small message buffer)
  */
 int
 ms_answer(int ucast_socket, const struct sockaddr_storage *mcast_addr, const char *orig_msg,
@@ -94,11 +94,11 @@ ms_answer(int ucast_socket, const struct sockaddr_storage *mcast_addr, const cha
 }
 
 /*
- * Send init message. ucast_socket is socket used to send message, remote_addr is address of host to
- * send message, mcast_addr is used multicast address, client_id is client id string with
+ * Send init message. ucast_socket is socket used to send message, remote_addr is address of host
+ * to send message, mcast_addr is used multicast address, client_id is client id string with
  * CLIENTID_LEN length, req_si should be non 0 if server information request is required.
- * Function returns 0 on success, otherwise same error as rs_sendto or -4 if message cannot be created
- * (usually due to small message buffer)
+ * Function returns 0 on success, otherwise same error as rs_sendto or -4 if message cannot be
+ * created (usually due to small message buffer)
  */
 int
 ms_init(int ucast_socket, const struct sockaddr_storage *remote_addr,
@@ -124,12 +124,12 @@ ms_init(int ucast_socket, const struct sockaddr_storage *remote_addr,
 }
 
 /*
- * Send query message. ucast_socket is socket used to send message, remote_addr is address of host to
- * send message, mcast_addr is used multicast address, client_id is client id string with
+ * Send query message. ucast_socket is socket used to send message, remote_addr is address of host
+ * to send message, mcast_addr is used multicast address, client_id is client id string with
  * CLIENTID_LEN length, ses_id is Session ID string with ses_id_len length. seq_num is sequential
  * number to set in packet.
- * Function returns 0 on success, otherwise same error as rs_sendto or -4 if message cannot be created
- * (usually due to small message buffer)
+ * Function returns 0 on success, otherwise same error as rs_sendto or -4 if message cannot be
+ * created (usually due to small message buffer)
  */
 int
 ms_query(int ucast_socket, const struct sockaddr_storage *remote_addr,
@@ -161,8 +161,8 @@ ms_query(int ucast_socket, const struct sockaddr_storage *remote_addr,
  * address, decoded is decoded message, to is sockaddr_storage address of destination, mcast_grp is
  * used to distinguish if add or not add mcast group tlv, similarly to mcast_prefix. session_id and
  * is session id string with session_id_len length.
- * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be created
- * (usually due to small message buffer)
+ * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be
+ * created (usually due to small message buffer)
  */
 int
 ms_response(int ucast_socket, const struct sockaddr_storage *mcast_addr,
@@ -177,8 +177,8 @@ ms_response(int ucast_socket, const struct sockaddr_storage *mcast_addr,
 	af_sa_to_str((struct sockaddr *)to, addr_str);
 	DEBUG_PRINTF("Sending response msg to %s", addr_str);
 
-	msg_len = msg_response_create(msg, sizeof(msg), decoded, mcast_grp, mcast_prefix, mcast_addr,
-	    session_id, session_id_len);
+	msg_len = msg_response_create(msg, sizeof(msg), decoded, mcast_grp, mcast_prefix,
+	    mcast_addr, session_id, session_id_len);
 
 	if (msg_len == 0) {
 		return (-4);

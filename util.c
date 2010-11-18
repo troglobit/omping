@@ -26,6 +26,7 @@
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -74,7 +75,11 @@ util_gen_id(char *id, size_t len, const struct ai_item *ai_item,
 	 * First fill item with some random data
 	 */
 	for (pos = 0; pos < len; pos++) {
+#if defined(__FreeBSD__) || defined(__OPENBSD__)
+		id[pos] = (unsigned char)arc4random_uniform(UCHAR_MAX);
+#else
 		id[pos] = (unsigned char)random();
+#endif
 	}
 
 	pos = 0;

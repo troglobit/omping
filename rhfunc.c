@@ -27,6 +27,7 @@
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,7 +133,7 @@ int
 rh_list_hn_max_len(struct rh_list *rh_list)
 {
 	struct rh_item *rh_item;
-	int max_len;
+	size_t max_len;
 
 	max_len = 0;
 	TAILQ_FOREACH(rh_item, rh_list, entries) {
@@ -141,5 +142,5 @@ rh_list_hn_max_len(struct rh_list *rh_list)
 		}
 	}
 
-	return (max_len);
+	return (max_len > INT_MAX ? INT_MAX : (int)max_len);
 }

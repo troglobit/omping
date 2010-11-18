@@ -135,8 +135,6 @@ af_ai_is_loopback(const struct addrinfo *ai)
 {
 	int res;
 
-	res = 0;
-
 	switch (ai->ai_family) {
 	case PF_INET:
 		res = ntohl(((struct sockaddr_in *)(ai->ai_addr))->sin_addr.s_addr) >> 24 == 0x7f;

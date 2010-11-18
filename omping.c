@@ -104,9 +104,9 @@ static void	print_client_state(const char *host_name, int host_name_len,
 
 static void	print_final_stats(const struct rh_list *remote_hosts, int host_name_len);
 
-static void	print_packet_stats(const char *host_name, int host_name_len, uint32_t seq, int dup,
-    size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt, int loss,
-    int ucast);
+static void	print_packet_stats(const char *host_name, int host_name_len, uint32_t seq,
+    int is_dup, size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt,
+    int loss, int ucast);
 
 static void	sigint_handler(int sig);
 
@@ -183,7 +183,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 
 	instance->mcast_socket =
 	    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
-		(struct sockaddr *)&instance->local_addr.sas, instance->local_ifname, instance->ttl);
+		AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname, instance->ttl);
 
 	if (instance->mcast_socket == -1) {
 		err(1, "Can't create/bind multicast socket");
@@ -277,6 +277,10 @@ omping_poll_receive_loop(struct omping_instance *instance)
 			if (receive_res > 0) {
 				res = omping_process_msg(instance, msg, receive_res, &from, ttl,
 				    (i == 0));
+
+				if (res == -2) {
+					return (-2);
+				}
 			}
 		}
 	} while (poll_res > 0);
@@ -350,9 +354,9 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 		rh_item = rh_list_find(&instance->remote_hosts, (const struct sockaddr *)from);
 		if (rh_item == NULL) {
 			DEBUG_PRINTF("Received message from unknown address");
+		} else {
+			rh_item->client_info.no_err_msgs++;
 		}
-
-		rh_item->client_info.no_err_msgs++;
 		break;
 	case -4:
 		DEBUG_PRINTF("Cannot send message. Buffer too small");
@@ -362,8 +366,8 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 	return (0);
 
 error_unknown_mcast:
-	DEBUG_PRINTF("Received multicast message with invalid type %c (0x%X)", msg_decoded.msg_type,
-	    msg_decoded.msg_type);
+	DEBUG_PRINTF("Received multicast message with invalid type %c (0x%X)",
+	    msg_decoded.msg_type, msg_decoded.msg_type);
 
 	return (0);
 }
@@ -460,8 +464,8 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		loss = (int)((1.0 - (float)received / (float)rh_item->client_info.seq_num) * 100.0);
 	}
 
-	print_packet_stats(rh_item->addr->host_name, instance->hn_max_len, msg_decoded->seq_num, 0, msg_len, dist_set,
-	    dist, rtt_set, rtt, avg_rtt, loss, ucast);
+	print_packet_stats(rh_item->addr->host_name, instance->hn_max_len, msg_decoded->seq_num, 0,
+	    msg_len, dist_set, dist, rtt_set, rtt, avg_rtt, loss, ucast);
 
 	return (0);
 }
@@ -518,8 +522,8 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
 	util_gen_sid(rh_item->server_info.ses_id);
 	rh_item->server_info.state = RH_SS_ANSWER;
 
-	return (ms_response(instance->ucast_socket, &instance->mcast_addr.sas, msg_decoded, from, 1, 0,
-	    rh_item->server_info.ses_id, SESSIONID_LEN));
+	return (ms_response(instance->ucast_socket, &instance->mcast_addr.sas, msg_decoded, from,
+	    1, 0, rh_item->server_info.ses_id, SESSIONID_LEN));
 }
 
 /*
@@ -756,10 +760,8 @@ print_client_state(const char *host_name, int host_name_len,
     const struct sockaddr_storage *mcast_addr, enum rh_client_state state)
 {
 	char addr_str[INET6_ADDRSTRLEN];
-	char hn_format_str[16];
 
-	snprintf(hn_format_str, sizeof(hn_format_str), "%%-%ds : ", host_name_len);
-	printf(hn_format_str, host_name);
+	printf("%-*s : ", host_name_len, host_name);
 
 	if (mcast_addr != NULL) {
 		af_sa_to_str(AF_CAST_SA(mcast_addr), addr_str);
@@ -786,7 +788,6 @@ print_client_state(const char *host_name, int host_name_len,
 static void
 print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 {
-	char hn_format_str[16];
 	char *cast_str;
 	struct rh_item *rh_item;
 	struct rh_item_ci *ci;
@@ -796,7 +797,6 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 	uint32_t received;
 
 	printf("\n");
-	snprintf(hn_format_str, sizeof(hn_format_str), "%%-%ds : ", host_name_len);
 
 	TAILQ_FOREACH(rh_item, remote_hosts, entries) {
 		for (i = 0; i < 2; i++) {
@@ -805,7 +805,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 
 			received = ci->no_received[i];
 
-			printf(hn_format_str, rh_item->addr->host_name);
+			printf("%-*s : ", host_name_len, rh_item->addr->host_name);
 
 			if (received == 0) {
 				printf("response message never received\n");
@@ -835,29 +835,27 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 
 /*
  * Print packet statistics. host_name is remote host name with maximal host_name_len length. seq is
- * sequence number of packet, dup is boolean with information if packet is duplicate or not, msg_len
- * is length of message, dist_set is boolean variable with information if dist is set or not. dist
- * is distance of packet (how TTL was changed). rtt_set is boolean variable with information if rtt
- * (current round trip time) and avg_rtt (average round trip time) is set and computed or not. loss
- * is number of lost packets. ucast is boolean variable saying if packet was unicast (true) or
- * multicast (false).
+ * sequence number of packet, is_dup is boolean with information if packet is duplicate or not,
+ * msg_len is length of message, dist_set is boolean variable with information if dist is set or
+ * not. dist is distance of packet (how TTL was changed). rtt_set is boolean variable with
+ * information if rtt (current round trip time) and avg_rtt (average round trip time) is set and
+ * computed or not. loss is number of lost packets. ucast is boolean variable saying if packet was
+ * unicast (true) or multicast (false).
  */
 static void
-print_packet_stats(const char *host_name, int host_name_len, uint32_t seq, int dup, size_t msg_len,
-    int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt, int loss, int ucast)
+print_packet_stats(const char *host_name, int host_name_len, uint32_t seq, int is_dup,
+    size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt, int loss,
+    int ucast)
 {
 	char *cast_str;
-	char hn_format_str[16];
 
 	cast_str = (ucast ? "uni" : "multi");
 
-	snprintf(hn_format_str, sizeof(hn_format_str), "%%-%ds : ", host_name_len);
-
-	printf(hn_format_str, host_name);
+	printf("%-*s : ", host_name_len, host_name);
 	printf("%5scast, ", cast_str);
 	printf("seq=%"PRIu32, seq);
 
-	if (dup) {
+	if (is_dup) {
 		printf(" (dup)");
 	}
 

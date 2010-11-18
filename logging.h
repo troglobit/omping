@@ -54,7 +54,9 @@ extern int	logging_get_verbose(void);
 extern int	logging_hexdump(const char *file_name, int line, int log_level,
     const char *prefix_str, const void *data, size_t data_len);
 
-extern int	logging_printf(const char *file_name, int line, int log_level, const char *format, ...);
+extern int	logging_printf(const char *file_name, int line, int log_level,
+    const char *format, ...) __attribute__((__format__(__printf__, 4, 5)));
+
 extern int	logging_sa_to_str(const struct sockaddr *sa, char *dst, int max_l);
 extern void	logging_set_verbose(int lv);
 

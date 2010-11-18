@@ -36,11 +36,15 @@
 #include "util.h"
 
 static int	tlv_add_actual_ts(char *msg, size_t msg_len, size_t *pos, enum tlv_opt_type opt);
+
 static int	tlv_add_sas(char *msg, size_t msg_len, size_t *pos, enum tlv_opt_type opt,
     const struct sockaddr_storage *sas, int store_prefix_len);
+
 static int	tlv_add_ts(char *msg, size_t msg_len, size_t *pos, enum tlv_opt_type opt,
     struct timeval *tv);
-static int	tlv_add_u8(char *msg, size_t msg_len, size_t *pos, enum tlv_opt_type opt, uint8_t val);
+
+static int	tlv_add_u8(char *msg, size_t msg_len, size_t *pos, enum tlv_opt_type opt,
+    uint8_t val);
 
 /*
  * Add option opt_type with length opt_len and value to message msg with msg_len length to position
@@ -190,7 +194,8 @@ tlv_add_sas(char *msg, size_t msg_len, size_t *pos, enum tlv_opt_type opt,
 	if (store_prefix_len)
 		memcpy(value + sizeof(af), &pref_len_val, sizeof(pref_len_val));
 
-	memcpy(value + sizeof(af) + (store_prefix_len ? sizeof(pref_len_val) : 0), addr_pointer, addr_len);
+	memcpy(value + sizeof(af) + (store_prefix_len ? sizeof(pref_len_val) : 0), addr_pointer,
+	    addr_len);
 
 	return (tlv_add(msg, msg_len, pos, opt, opt_len, value));
 

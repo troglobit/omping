@@ -71,8 +71,8 @@ extern int		 af_copy_addr(const struct sockaddr_storage *a1,
     const struct sockaddr_storage *a2, int addr_source, int port_source,
     struct sockaddr_storage *res);
 
-extern int		 af_find_local_ai(const struct ai_list *ai_list, int *ip_ver, struct ifaddrs **ifa_list,
-    struct ifaddrs **ifa_local, struct ai_item **ai_item);
+extern int		 af_find_local_ai(const struct ai_list *ai_list, int *ip_ver,
+    struct ifaddrs **ifa_list, struct ifaddrs **ifa_local, struct ai_item **ai_item);
 
 extern struct addrinfo	*af_host_to_ai(const char *host_name, const char *port, int ip_ver);
 extern int		 af_is_ai_in_list(const struct addrinfo *a1, const struct ai_list *ai_list);

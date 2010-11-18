@@ -192,6 +192,9 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	 * Store local ifname
 	 */
 	*local_ifname = strdup(ifa_local->ifa_name);
+	if (*local_ifname == NULL) {
+		errx(1, "Can't alloc memory");
+	}
 
 	freeifaddrs(ifa_list);
 
@@ -412,7 +415,8 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
 			ai_item->host_name = argv[i];
 
 			TAILQ_INSERT_TAIL(ai_list, ai_item, entries);
-			DEBUG_PRINTF("new address \"%s\" added to list (position %d)", argv[i], no_ai);
+			DEBUG_PRINTF("new address \"%s\" added to list (position %d)", argv[i],
+			    no_ai);
 			no_ai++;
 		} else {
 			freeaddrinfo(ai_res);
@@ -477,7 +481,8 @@ return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct ai_li
 				DEBUG2_PRINTF("ipver for %s is %d", aip->host_name, ipver_res);
 
 				if (ipver_res == -1) {
-					errx(1, "Host %s doesn't support ipv4 or ipv6", aip->host_name);
+					errx(1, "Host %s doesn't support ipv4 or ipv6",
+					    aip->host_name);
 				}
 
 				if (ipver_res != 0 && ipver_res != mcast_ipver) {
