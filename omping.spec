@@ -5,7 +5,7 @@ Summary: Utility to test IP multicast functionality
 Group: Applications/Internet
 License: ISC
 URL: http://fedorahosted.org/omping/
-Source0: %{name}-%{version}.tar.gz
+Source0: http://fedorahosted.org/releases/o/m/omping/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 %description
