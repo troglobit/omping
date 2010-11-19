@@ -1,0 +1,127 @@
+.\" Copyright (c) 2010, Red Hat, Inc.
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND RED HAT, INC. DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL RED HAT, INC. BE LIABLE
+.\" FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+.\" OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+.\" CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Author: Jan Friesse <jfriesse@redhat.com>
+
+.TH omping 8 2010-11-18
+.SH NAME
+omping \- test IP multicast
+.SH SYNOPSIS
+\fBping\fR [\fB-46FVv\fR] [\fB-i \fIinterval\fR] [\fB-m \fImcast_addr\fR] [\fB-p \fIport\fR] [\fB-t
+\fIttl\fR] \fIremote_addr...
+.SH DESCRIPTION
+\fBomping\fR is program which uses User Datagram Protocol to determine if computer is able to send
+and/or receive IP Unicast and Multicast packets from network. It's modelled to be very similar as
+\fBping(8)\fR and also has some features of \fBfping(8)\fR command. Unlike \fBping(8)\fR where
+server part is usually implemented in OS, \fBomping(8)\fR is server and client together. This mean
+that \fBomping\fR must be running on all computers to test sending/receiving IP Multicast.
+.PP
+\fBOmping(8)\fR uses Internet-Draft \fBdraft\-ietf\-mboned-ssmping\-08\fR as underlaying protocol
+and tries to be as much compliant as possible.
+.SH OPTIONS
+.IP \fB-4\fR
+Force usage of IPv4.
+.IP \fB-6\fR
+Force usage of IPv6.
+.IP \fB-F\fR
+Allow entering of arguments which are not allowed or not recommended by specification. This is
+typically interval parameter. Option may be used multiple times.
+.IP \fB-V\fR
+Display version a quits.
+.IP \fB-v\fR
+Set level of verbosity. Parameter can be used multiple times to achieve higher verbosity.
+.IP \fB-i\ \fIinterval\fR
+Wait \fIinterval\fR seconds between sending each request packet. The default is to wait for one
+second between each packet.
+.IP \fB-m\ \fImcast_addr\fR
+Multicast address to listen on for multicast answer messages. Default is 232.43.211.234 for IPv4
+and ff3e::4321:1234 for IPv6.
+.IP \fB-p\ \fIport\fR
+Port to bind and listen on for both unicast and multicast messages. Default is 4321.
+.IP \fB-t\ \fIttl\fR
+Time-To-Live of sent packets.
+.IP \fBremote_addr\fR
+List of addresses to test. One of them must be address of local internet interface. This
+local address is used for bind and listening on for unicast packets. It's also used to determine
+which interface should be used for sending multicast replies.
+.SH EXAMPLE
+The following commands and output is typical way how to find-out and solve problems using omping
+tool. In this situation, we have 3 computers named node-01, node-02 and node-03 with IP addresses
+192.168.1.101 - 192.168.1.103. Let's run following command on all of them.
+.PP
+.nf
+$ omping node-01 node-02 node-03
+.ni
+.PP
+on all of nodes we should be able to seen similar output
+.PP
+.nf
+node-01 : waiting for response msg
+node-03 : waiting for response msg
+node-01 : joined (S,G) = (*, 232.43.211.234), pinging
+node-03 : joined (S,G) = (*, 232.43.211.234), pinging
+node-01 :   unicast, seq=1, size=69 bytes, dist=0, time=0.192ms (0.192 avg, 0% loss)
+node-01 : multicast, seq=1, size=69 bytes, dist=0, time=0.284ms (0.284 avg, 0% loss)
+node-03 :   unicast, seq=1, size=69 bytes, dist=0, time=0.279ms (0.279 avg, 0% loss)
+node-03 : multicast, seq=1, size=69 bytes, dist=0, time=0.360ms (0.360 avg, 0% loss)
+.ni
+.PP
+First two lines say us, that node-02 (actual node) is waiting for response message from node-01 and
+node-03. Second two lines contain information, that we were successfully able to send init message
+and also received response message from remote nodes. Both of this messages are unicast, so we are
+able to send/receive unicast messages on given port. If all of nodes are up and omping is running on
+all of them, but we are not able to receive response message, it's time to check connectivity
+between nodes. First make sure, that you are able to \fBping(8)\fR them. If so, make sure that
+firewall has allowed port 4321 to receive udp packets.
+.PP
+Next line says us that we were able to receive 69 bytes long unicast answer message from
+node-01, with sequence number 1. Distance between computers are 0 so they are on same link net. Time
+between send and receive packet was 0.192 ms, what is also current average time and also there were
+no lost packets.
+.PP
+6th line say same information as previous one, but received message is multicast one. It means, that
+multicast is probably well configured.
+.PP
+7th and 8th lines are same as previous two one but for node-03.
+.PP
+If node is able to receive unicast packets, but never multicast it means that multicast
+configuration is broken. It's recommended to turn off OS firewall. If multicast packets start to
+arriving, great. If not, problem is hidden in switches/routers on way between nodes. Contact your
+system administrator to allow multicast traffic on switch/router.
+.PP
+\fBomping\fR is terminated by SIGINT signal (CTRL-c). Summary statistics are shown
+.PP
+.nf
+node-01 :   unicast, xmt/rcv/%loss = 389/389/0%, min/avg/max = 0.267/0.289/0.386
+node-01 : multicast, xmt/rcv/%loss = 389/389/0%, min/avg/max = 0.306/0.332/0.540
+node-03 :   unicast, xmt/rcv/%loss = 289/289/0%, min/avg/max = 0.262/0.284/0.365
+node-03 : multicast, xmt/rcv/%loss = 289/289/0%, min/avg/max = 0.325/0.356/0.548
+.ni
+.SH BUGS
+.IP \[bu] 2
+Packet duplicate detection is not implemented.
+.IP \[bu]
+SSM multicast is not implemented.
+.IP \[bu]
+Actually computed RTT is not RTT taken from packet, but end-to-end delivery.
+.IP \[bu]
+It's impossible to set size of send/receive buffer.
+.IP \[bu]
+No quite mode.
+.IP \[bu]
+No count mode.
+.SH SEE ALSO
+.PP
+\fBping\fR(8),
+\fBfping\fR(8)
