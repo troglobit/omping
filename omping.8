@@ -63,7 +63,7 @@ using omping. In this situation, we have 3 computers named node-01, node-02 and 
 .PP
 .nf
 $ omping node-01 node-02 node-03
-.ni
+.fi
 .PP
 on all of nodes we should be able to seen similar output
 .PP
@@ -76,7 +76,7 @@ node-01 :   unicast, seq=1, size=69 bytes, dist=0, time=0.192ms (0.192 avg, 0% l
 node-01 : multicast, seq=1, size=69 bytes, dist=0, time=0.284ms (0.284 avg, 0% loss)
 node-03 :   unicast, seq=1, size=69 bytes, dist=0, time=0.279ms (0.279 avg, 0% loss)
 node-03 : multicast, seq=1, size=69 bytes, dist=0, time=0.360ms (0.360 avg, 0% loss)
-.ni
+.fi
 .PP
 The first two lines tell us, that node-02 (actual node) is waiting for a response
 message from node-01 and node-03. The second two lines contain information, that
@@ -110,7 +110,7 @@ node-01 :   unicast, xmt/rcv/%loss = 389/389/0%, min/avg/max = 0.267/0.289/0.386
 node-01 : multicast, xmt/rcv/%loss = 389/389/0%, min/avg/max = 0.306/0.332/0.540
 node-03 :   unicast, xmt/rcv/%loss = 289/289/0%, min/avg/max = 0.262/0.284/0.365
 node-03 : multicast, xmt/rcv/%loss = 289/289/0%, min/avg/max = 0.325/0.356/0.548
-.ni
+.fi
 .SH BUGS
 .IP \[bu] 2
 Packet duplicate detection is not implemented.

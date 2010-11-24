@@ -1,6 +1,6 @@
 Name: omping
 Version: 0.0.1
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Utility to test IP multicast functionality
 Group: Applications/Internet
 License: ISC
@@ -20,7 +20,7 @@ make %{?_smp_mflags} CFLAGS="%{optflags}"
 
 %install
 rm -rf %{buildroot}
-make DESTDIR="%{buildroot}" PREFIX="/usr" install
+make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
 
 %clean
 rm -rf %{buildroot}
@@ -32,5 +32,8 @@ rm -rf %{buildroot}
 %{_mandir}/man8/*
 
 %changelog
+* Wed Nov 24 2010 Jan Friesse <jfriesse@redhat.com> - 0.0.1-2
+- Change hard coded prefix path to macro
+
 * Fri Nov 19 2010 Jan Friesse <jfriesse@redhat.com> - 0.0.1-1
 - Initial package for Fedora
