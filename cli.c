@@ -423,8 +423,8 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
 		}
 	}
 
-	if (no_ai < 1) {
-		warnx("at least one remote addresses should be specified");
+	if (no_ai < 2) {
+		warnx("at least two addresses must be specified (local and remote)");
 		usage();
 		exit(1);
 	}
