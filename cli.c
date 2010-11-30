@@ -38,8 +38,10 @@
 #include "logging.h"
 
 static void	conv_list_addrs(struct ai_list *ai_list, int ip_ver);
+
 static void	conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
-    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr);
+    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr);
+
 static void	conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr_s,
     const char *port_s);
 static uint16_t	conv_port(const struct sockaddr_storage *mcast_addr);
@@ -57,11 +59,12 @@ static void	usage();
  * be 0. mcast_addr will be filled by requested mcast address or will be NULL. Port will be filled
  * by requested port (string value) or will be NULL. ai_list will be initialized and requested
  * hostnames will be stored there. ttl is pointer where user set TTL or default TTL will be stored.
+ * single_addr is boolean set if only one remote address is entered.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, struct ai_item *mcast_addr, uint16_t *port,
-    uint8_t *ttl)
+    uint8_t *ttl, int *single_addr)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -78,6 +81,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*local_ifname = NULL;
 	*wait_time = DEFAULT_WAIT_TIME;
 	*ttl = DEFAULT_TTL;
+	*single_addr = 0;
 	port_s = DEFAULT_PORT_S;
 	force = 0;
 
@@ -186,7 +190,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	/*
 	 * Find local addr and copy that. Also remove that from list
 	 */
-	conv_local_addr(ai_list, ai_item, ifa_local, *ip_ver, local_addr);
+	conv_local_addr(ai_list, ai_item, ifa_local, *ip_ver, local_addr, single_addr);
 
 	/*
 	 * Store local ifname
@@ -244,11 +248,12 @@ conv_list_addrs(struct ai_list *ai_list, int ip_ver)
 }
 
 /*
- * Convert ifa_local addr to local_addr. ai_local is freed and removed from list.
+ * Convert ifa_local addr to local_addr. If only one remote_host is entered, single_addr is set, if
+ * not then ai_local is freed and removed from list.
  */
 static void
 conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
-    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr)
+    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr)
 {
 	size_t addr_len;
 	uint16_t port;
@@ -269,7 +274,11 @@ conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
 	}
 
 	memcpy(&local_addr->sas, ifa_local->ifa_addr, addr_len);
-	local_addr->host_name = ai_local->host_name;
+	local_addr->host_name = strdup(ai_local->host_name);
+	if (local_addr->host_name == NULL) {
+		err(1, "Can't alloc memory");
+		/* NOTREACHED */
+	}
 
 	switch (ifa_local->ifa_addr->sa_family) {
 	case AF_INET:
@@ -284,9 +293,14 @@ conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
 		break;
 	}
 
-	TAILQ_REMOVE(ai_list, ai_local, entries);
+	*single_addr = (TAILQ_NEXT(TAILQ_FIRST(ai_list), entries) == NULL);
 
-	free(ai_local);
+	if (!*single_addr) {
+		TAILQ_REMOVE(ai_list, ai_local, entries);
+
+		free(ai_local->host_name);
+		free(ai_local);
+	}
 }
 
 static int
@@ -423,8 +437,8 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
 		}
 	}
 
-	if (no_ai < 2) {
-		warnx("at least two addresses must be specified (local and remote)");
+	if (no_ai < 1) {
+		warnx("at least one remote addresses should be specified");
 		usage();
 		exit(1);
 	}

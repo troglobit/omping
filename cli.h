@@ -29,7 +29,7 @@ extern "C" {
 
 extern int	cli_parse(struct ai_list *ai_list, int argc, char * const argv[],
     char **local_ifname, int *ip_ver, struct ai_item *local_addr, int *wait_time,
-    struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl);
+    struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr);
 
 #ifdef __cplusplus
 }

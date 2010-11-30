@@ -32,12 +32,13 @@ extern "C" {
 extern int	sf_bind_socket(const struct sockaddr *bind_addr, int sock);
 
 extern int	sf_create_multicast_socket(const struct sockaddr *mcast_addr,
-    const struct sockaddr *local_addr, const char *local_ifname, uint8_t ttl);
+    const struct sockaddr *local_addr, const char *local_ifname, uint8_t ttl,
+    int allow_mcast_loop);
 
 extern int	sf_create_udp_socket(const struct sockaddr *sa);
 
 extern int	sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl,
-    int mcast_send, const char *local_ifname);
+    int mcast_send, int allow_mcast_loop, const char *local_ifname);
 
 extern int	sf_mcast_join_group(const struct sockaddr *mcast_addr,
     const struct sockaddr *local_addr, const char *local_ifname, int sock);

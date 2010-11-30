@@ -32,8 +32,8 @@
 #include <unistd.h>
 
 #include "addrfunc.h"
-#include "logging.h"
 #include "cli.h"
+#include "logging.h"
 #include "msg.h"
 #include "msgsend.h"
 #include "omping.h"
@@ -55,8 +55,9 @@ struct omping_instance {
 	char *local_ifname;
 	int hn_max_len;
 	int ip_ver;
-	int ucast_socket;
 	int mcast_socket;
+	int single_addr;
+	int ucast_socket;
 	int wait_time;
 	uint16_t port;
 	uint8_t ttl;
@@ -169,13 +170,13 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 
 	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
 	    &instance->local_addr, &instance->wait_time, &instance->mcast_addr, &instance->port,
-	    &instance->ttl);
+	    &instance->ttl, &instance->single_addr);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs);
 
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
-	    instance->local_ifname);
+	    instance->single_addr, instance->local_ifname);
 
 	if (instance->ucast_socket == -1) {
 		err(1, "Can't create/bind unicast socket");
@@ -183,7 +184,8 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 
 	instance->mcast_socket =
 	    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
-		AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname, instance->ttl);
+		AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname, instance->ttl,
+		instance->single_addr);
 
 	if (instance->mcast_socket == -1) {
 		err(1, "Can't create/bind multicast socket");

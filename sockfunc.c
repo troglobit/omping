@@ -52,12 +52,13 @@ sf_bind_socket(const struct sockaddr *bind_addr, int sock)
 
 /*
  * Create and bind UDP multicast socket. Socket is created with mcast_addr address, joined to
- * local_addr address on local_ifname NIC interface with ttl Time-To-Live.
+ * local_addr address on local_ifname NIC interface with ttl Time-To-Live. allow_mcast_loop
+ * is boolean flag to set mcast_loop.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
-    const char *local_ifname, uint8_t ttl)
+    const char *local_ifname, uint8_t ttl, int allow_mcast_loop)
 {
 	int sock;
 
@@ -114,12 +115,13 @@ sf_create_udp_socket(const struct sockaddr *sa)
 /*
  * Create and bind UDP unicast socket with ttl Time-To-Live. It can also set multicast ttl if
  * set_mcast_ttl not 0. If mcast_send is set, options for sending multicast packets are set.
- * local_ifname is name of local interface where local_addr is present.
+ * allow_mcast_loop is boolean flag to set mcast_loop. local_ifname is name of local interface
+ * where local_addr is present.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mcast_send,
-    const char *local_ifname)
+    int allow_mcast_loop, const char *local_ifname)
 {
 	int sock;
 
@@ -137,7 +139,7 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 			return (-1);
 		}
 
-		if (sf_set_socket_mcast_loop(local_addr, sock, 0) == -1) {
+		if (sf_set_socket_mcast_loop(local_addr, sock, allow_mcast_loop) == -1) {
 			return (-1);
 		}
 

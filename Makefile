@@ -43,7 +43,7 @@ msg.o: msg.c msg.h logging.h tlv.h
 msgsend.o: msgsend.c addrfunc.h logging.h msg.h msgsend.h omping.h rsfunc.h util.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-omping.o: omping.c logging.h addrfunc.h cli.h rhfunc.h util.h msg.h
+omping.o: omping.c addrfunc.h cli.h logging.h msg.h msgsend.h omping.h rhfunc.h rsfunc.h sockfunc.h tlv.h util.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 rhfunc.o: rhfunc.c rhfunc.h addrfunc.h util.h
