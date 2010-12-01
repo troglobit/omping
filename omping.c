@@ -69,6 +69,11 @@ struct omping_instance {
 static int exit_requested;
 
 /*
+ * User requested to display overall statistics (SIGINT/SIGUSR1)
+ */
+static int display_stats_requested;
+
+/*
  * Function prototypes
  */
 static int	omping_check_msg_common(const struct msg_decoded *msg_decoded);
@@ -79,6 +84,8 @@ static void	omping_instance_create(struct omping_instance *instance, int argc,
 static void	omping_instance_free(struct omping_instance *instance);
 
 static int	omping_poll_receive_loop(struct omping_instance *instance);
+
+static int	omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp);
 
 static int	omping_process_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct sockaddr_storage *from, uint8_t ttl, int ucast);
@@ -109,6 +116,7 @@ static void	print_packet_stats(const char *host_name, int host_name_len, uint32_
     int is_dup, size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt,
     int loss, int ucast);
 
+static void	siginfo_handler(int sig);
 static void	sigint_handler(int sig);
 
 static void	register_signal_handlers(void);
@@ -232,18 +240,10 @@ omping_poll_receive_loop(struct omping_instance *instance)
 	memset(&old_tstamp, 0, sizeof(old_tstamp));
 
 	do {
-		poll_res = rs_poll_timeout(instance->ucast_socket, instance->mcast_socket,
-		    instance->wait_time, &old_tstamp);
-
-		switch (poll_res) {
-		case -1:
-			err(2, "Cannot poll on sockets");
-			/* NOTREACHED */
-			break;
-		case -2:
+		poll_res = omping_poll_timeout(instance, &old_tstamp);
+		if (poll_res == -2) {
 			return (-2);
 			/* NOTREACHED */
-			break;
 		}
 
 		for (i = 0; i < 2; i++) {
@@ -288,6 +288,47 @@ omping_poll_receive_loop(struct omping_instance *instance)
 	} while (poll_res > 0);
 
 	return (0);
+}
+
+/*
+ * Wait for messages on sockets. instance is omping_instance and old_tstamp is temporary variable
+ * which must be set to zero on first call. Function handles EINTR for display statistics.
+ * Function is wrapper on top of rs_poll_timeout, but handles -1 error code. Other return values
+ * have same meaning.
+ */
+static int
+omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp)
+{
+	int poll_res;
+
+	do {
+		poll_res = rs_poll_timeout(instance->ucast_socket, instance->mcast_socket,
+		    instance->wait_time, old_tstamp);
+
+		switch (poll_res) {
+		case -1:
+			err(2, "Cannot poll on sockets");
+			/* NOTREACHED */
+			break;
+		case -2:
+			if (display_stats_requested) {
+				display_stats_requested = 0;
+				print_final_stats(&instance->remote_hosts,
+				    instance->hn_max_len);
+				printf("\n");
+
+				if (!exit_requested) {
+					break;
+				}
+			}
+
+			return (-2);
+			/* NOTREACHED */
+			break;
+		}
+	} while (poll_res < 0);
+
+	return (poll_res);
 }
 
 /*
@@ -824,7 +865,11 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 				loss = (int)((1.0 - (float)received / (float)ci->seq_num) * 100.0);
 			}
 
-			avg_rtt = ci->rtt_sum[i] / received;
+			if (received == 0) {
+				avg_rtt = 0;
+			} else {
+				avg_rtt = ci->rtt_sum[i] / received;
+			}
 
 			printf("%5scast, ", cast_str);
 
@@ -900,6 +945,21 @@ register_signal_handlers(void)
 	act.sa_flags = 0;
 
 	sigaction(SIGINT, &act, NULL);
+
+	act.sa_handler = siginfo_handler;
+#ifdef SIGINFO
+	sigaction(SIGINFO, &act, NULL);
+#endif
+	sigaction(SIGUSR1, &act, NULL);
+}
+
+/*
+ * Handler for SIGINFO signal
+ */
+static void
+siginfo_handler(int sig)
+{
+	display_stats_requested++;
 }
 
 /*
