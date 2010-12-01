@@ -303,15 +303,18 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	struct msg_decoded msg_decoded;
-	int res;
+	char *cast_str;
 	struct rh_item *rh_item;
+	int res;
 
 	res = 0;
 
 	msg_decode(msg, msg_len, &msg_decoded);
 
+	cast_str = (ucast ? "uni" : "multi");
+
 	af_sa_to_str((struct sockaddr *)from, addr_str);
-	DEBUG_PRINTF("Received message from %s type %c (0x%X), len %zu", addr_str,
+	DEBUG_PRINTF("Received %scast message from %s type %c (0x%X), len %zu", cast_str, addr_str,
 	    msg_decoded.msg_type, msg_decoded.msg_type, msg_len);
 
 	if (omping_check_msg_common(&msg_decoded) == -1) {
@@ -809,7 +812,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 
 			printf("%-*s : ", host_name_len, rh_item->addr->host_name);
 
-			if (received == 0) {
+			if (received == 0 && i == 0) {
 				printf("response message never received\n");
 				break;
 			}
