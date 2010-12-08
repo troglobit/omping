@@ -52,6 +52,7 @@ struct omping_instance {
 	struct ai_item local_addr, mcast_addr;
 	struct rh_list remote_hosts;
 	struct ai_list remote_addrs;
+	enum sf_transport_method transport_method;
 	char *local_ifname;
 	int hn_max_len;
 	int ip_ver;
@@ -108,7 +109,8 @@ static int	omping_send_client_msgs(struct omping_instance *instance);
 static void	omping_send_receive_loop(struct omping_instance *instance);
 
 static void	print_client_state(const char *host_name, int host_name_len,
-    const struct sockaddr_storage *mcast_addr, enum rh_client_state state);
+    enum sf_transport_method transport_method, const struct sockaddr_storage *mcast_addr,
+    const struct sockaddr_storage *remote_addr, enum rh_client_state state);
 
 static void	print_final_stats(const struct rh_list *remote_hosts, int host_name_len);
 
@@ -177,14 +179,14 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	memset(instance, 0, sizeof(struct omping_instance));
 
 	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
-	    &instance->local_addr, &instance->wait_time, &instance->mcast_addr, &instance->port,
-	    &instance->ttl, &instance->single_addr);
+	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
+	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs);
 
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
-	    instance->single_addr, instance->local_ifname);
+	    instance->single_addr, instance->local_ifname, instance->transport_method);
 
 	if (instance->ucast_socket == -1) {
 		err(1, "Can't create/bind unicast socket");
@@ -193,7 +195,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	instance->mcast_socket =
 	    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
 		AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname, instance->ttl,
-		instance->single_addr);
+		instance->single_addr, instance->transport_method, &instance->remote_addrs);
 
 	if (instance->mcast_socket == -1) {
 		err(1, "Can't create/bind multicast socket");
@@ -663,8 +665,8 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		} else {
 			DEBUG_PRINTF("Client was not in query state. Put it to stop state");
 			rh_item->client_info.state = RH_CS_STOP;
-			print_client_state(rh_item->addr->host_name, instance->hn_max_len, NULL,
-			    RH_CS_STOP);
+			print_client_state(rh_item->addr->host_name, instance->hn_max_len,
+			    instance->transport_method, NULL, &rh_item->addr->sas, RH_CS_STOP);
 		}
 
 		return (-5);
@@ -699,7 +701,8 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		rh_item->client_info.seq_num++;
 
 		print_client_state(rh_item->addr->host_name, instance->hn_max_len,
-		    &instance->mcast_addr.sas, RH_CS_QUERY);
+		    instance->transport_method, &instance->mcast_addr.sas, &rh_item->addr->sas,
+		    RH_CS_QUERY);
 	}
 
 	return (ms_query(instance->ucast_socket, from, &instance->mcast_addr.sas,
@@ -730,7 +733,8 @@ omping_send_client_msgs(struct omping_instance *instance)
 			if (util_time_absdiff(ci->last_init_ts, util_get_time()) >
 			    DEFAULT_WAIT_TIME) {
 				print_client_state(remote_host->addr->host_name,
-				    instance->hn_max_len, NULL, RH_CS_INITIAL);
+				    instance->hn_max_len, instance->transport_method, NULL,
+				    &remote_host->addr->sas, RH_CS_INITIAL);
 
 				send_res = ms_init(instance->ucast_socket, &remote_host->addr->sas,
 				    &instance->mcast_addr.sas, ci->client_id, 0);
@@ -798,27 +802,44 @@ omping_send_receive_loop(struct omping_instance *instance)
 }
 
 /*
- * Print status of client with host_name (maximum length of host_name_len). mcast_addr is current
- * multicast address to be used by client and state is current state of client.
+ * Print status of client with host_name (maximum length of host_name_len). transport_method is
+ * transport method to be used, mcast_addr is current multicast address to be used by client.
+ * remote_addr is address of client and state is current state of client.
  */
 static void
 print_client_state(const char *host_name, int host_name_len,
-    const struct sockaddr_storage *mcast_addr, enum rh_client_state state)
+    enum sf_transport_method transport_method, const struct sockaddr_storage *mcast_addr,
+    const struct sockaddr_storage *remote_addr, enum rh_client_state state)
 {
-	char addr_str[INET6_ADDRSTRLEN];
+	char mcast_addr_str[INET6_ADDRSTRLEN];
+	char rh_addr_str[INET6_ADDRSTRLEN];
 
 	printf("%-*s : ", host_name_len, host_name);
-
-	if (mcast_addr != NULL) {
-		af_sa_to_str(AF_CAST_SA(mcast_addr), addr_str);
-	}
 
 	switch (state) {
 	case RH_CS_INITIAL:
 		printf("waiting for response msg");
 		break;
 	case RH_CS_QUERY:
-		printf("joined (S,G) = (*, %s), pinging", addr_str);
+		memset(mcast_addr_str, 0, sizeof(mcast_addr_str));
+		memset(rh_addr_str, 0, sizeof(rh_addr_str));
+
+		if (mcast_addr != NULL) {
+			af_sa_to_str(AF_CAST_SA(mcast_addr), mcast_addr_str);
+		}
+
+		if (remote_addr != NULL) {
+			af_sa_to_str(AF_CAST_SA(remote_addr), rh_addr_str);
+		}
+
+		switch (transport_method) {
+		case SF_TM_ASM:
+			printf("joined (S,G) = (*, %s), pinging", mcast_addr_str);
+			break;
+		case SF_TM_SSM:
+			printf("joined (S,G) = (%s, %s), pinging", rh_addr_str, mcast_addr_str);
+			break;
+		}
 		break;
 	case RH_CS_STOP:
 		printf("server told us to stop");

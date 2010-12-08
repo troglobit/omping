@@ -31,7 +31,7 @@ $(PROGRAM_NAME): addrfunc.o cli.o logging.o msg.o msgsend.o omping.o rhfunc.o rs
 addrfunc.o: addrfunc.c addrfunc.h logging.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-cli.o: cli.c cli.h omping.h logging.h addrfunc.h
+cli.o: cli.c cli.h addrfunc.h omping.h logging.h sockfunc.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 logging.o: logging.c logging.h

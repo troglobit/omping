@@ -25,10 +25,6 @@
 extern "C" {
 #endif
 
-#ifdef __cplusplus
-}
-#endif
-
 extern int	rs_poll_timeout(int unicast_socket, int multicast_socket, int timeout,
     struct timeval *old_tstamp);
 
@@ -37,5 +33,9 @@ extern ssize_t	rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char
 
 extern ssize_t	rs_sendto(int sock, const char *msg, size_t msg_size,
     const struct sockaddr_storage *to);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _RSFUNC_H_ */

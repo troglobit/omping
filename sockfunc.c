@@ -53,12 +53,15 @@ sf_bind_socket(const struct sockaddr *bind_addr, int sock)
 /*
  * Create and bind UDP multicast socket. Socket is created with mcast_addr address, joined to
  * local_addr address on local_ifname NIC interface with ttl Time-To-Live. allow_mcast_loop
- * is boolean flag to set mcast_loop.
+ * is boolean flag to set mcast_loop. transport_method is transport method to use. remote_addrs are
+ * list of remote addresses of ai_list type. This is used for SSM to join into appropriate source
+ * groups.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
-    const char *local_ifname, uint8_t ttl, int allow_mcast_loop)
+    const char *local_ifname, uint8_t ttl, int allow_mcast_loop,
+    enum sf_transport_method transport_method, const struct ai_list *remote_addrs)
 {
 	int sock;
 
@@ -87,8 +90,18 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
-	if (sf_mcast_join_group(mcast_addr, local_addr, local_ifname, sock) == -1) {
-		return (-1);
+	switch (transport_method) {
+	case SF_TM_ASM:
+		if (sf_mcast_join_asm_group(mcast_addr, local_addr, local_ifname, sock) == -1) {
+			return (-1);
+		}
+		break;
+	case SF_TM_SSM:
+		if (sf_mcast_join_ssm_group_list(mcast_addr, local_addr, remote_addrs,
+		    local_ifname, sock) == -1) {
+			return (-1);
+		}
+		break;
 	}
 
 	return (sock);
@@ -116,12 +129,12 @@ sf_create_udp_socket(const struct sockaddr *sa)
  * Create and bind UDP unicast socket with ttl Time-To-Live. It can also set multicast ttl if
  * set_mcast_ttl not 0. If mcast_send is set, options for sending multicast packets are set.
  * allow_mcast_loop is boolean flag to set mcast_loop. local_ifname is name of local interface
- * where local_addr is present.
+ * where local_addr is present. transport_method is transport method to use.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mcast_send,
-    int allow_mcast_loop, const char *local_ifname)
+    int allow_mcast_loop, const char *local_ifname, enum sf_transport_method transport_method)
 {
 	int sock;
 
@@ -164,6 +177,16 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 	return (sock);
 }
 
+int
+sf_is_ssm_supported(void)
+{
+#if defined (IP_ADD_SOURCE_MEMBERSHIP) || defined (MCAST_JOIN_SOURCE_GROUP)
+	return (1);
+#else
+	return (0);
+#endif
+}
+
 /*
  * Join socket to multicast group (ASM). mcast_addr is multicast address, local_address is address
  * of local interface to join on, local_ifname is name of interface with local_address address and
@@ -171,7 +194,7 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
  * Function returns 0 on success, otherwise -1.
  */
 int
-sf_mcast_join_group(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
+sf_mcast_join_asm_group(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
     const char *local_ifname, int sock)
 {
 	struct ip_mreq mreq4;
@@ -211,6 +234,114 @@ sf_mcast_join_group(const struct sockaddr *mcast_addr, const struct sockaddr *lo
 	default:
 		DEBUG_PRINTF("Unknown sockaddr family");
 		errx(1, "Unknown sockaddr family");
+	}
+
+	return (0);
+}
+
+/*
+ * Join socket to multicast group (SSM). mcast_addr is multicast address, local_address is address
+ * of local interface to join on, remote_addr is used for source of multicast, local_ifname
+ * is name of interface with local_address address and sock is socket to use.
+ * Function returns 0 on success, otherwise -1.
+ */
+int
+sf_mcast_join_ssm_group(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
+    const struct sockaddr *remote_addr, const char *local_ifname, int sock)
+{
+#ifdef IP_ADD_SOURCE_MEMBERSHIP
+	struct ip_mreq_source mreq4;
+#endif
+#ifdef MCAST_JOIN_SOURCE_GROUP
+	struct group_source_req greq;
+	size_t addr_len;
+	int iface_index;
+	int ip_lv;
+#endif
+
+#ifdef IP_ADD_SOURCE_MEMBERSHIP
+	if (mcast_addr->sa_family == AF_INET) {
+		memset(&mreq4, 0, sizeof(mreq4));
+
+		mreq4.imr_multiaddr = ((struct sockaddr_in *)mcast_addr)->sin_addr;
+		mreq4.imr_interface = ((struct sockaddr_in *)local_addr)->sin_addr;
+		mreq4.imr_sourceaddr = ((struct sockaddr_in *)remote_addr)->sin_addr;
+
+		if (setsockopt(sock, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &mreq4,
+		    sizeof(mreq4)) == -1) {
+			DEBUG_PRINTF("setsockopt IP_ADD_SOURCE_MEMBERSHIP failed");
+
+			return (-1);
+		}
+
+		return (0);
+	}
+#endif
+
+#ifdef MCAST_JOIN_SOURCE_GROUP
+	if (mcast_addr->sa_family == AF_INET || mcast_addr->sa_family == AF_INET6) {
+		iface_index = if_nametoindex(local_ifname);
+		if (iface_index == 0) {
+			DEBUG_PRINTF("if_nametoindex cannot convert iface name %s to index",
+			    local_ifname);
+
+			return (-1);
+		}
+
+		memset(&greq, 0, sizeof(greq));
+
+		switch (mcast_addr->sa_family) {
+		case AF_INET:
+			addr_len = sizeof(struct sockaddr_in);
+			ip_lv = IPPROTO_IP;
+			break;
+		case AF_INET6:
+			addr_len = sizeof(struct sockaddr_in6);
+			ip_lv = IPPROTO_IPV6;
+			break;
+		default:
+			DEBUG_PRINTF("Unknown sockaddr family");
+			errx(1, "Unknown sockaddr family");
+			/* NOTREACHED */
+		}
+
+		greq.gsr_interface = iface_index;
+		memcpy(&greq.gsr_group, mcast_addr, addr_len);
+		memcpy(&greq.gsr_source, remote_addr, addr_len);
+
+		if (setsockopt(sock, ip_lv, MCAST_JOIN_SOURCE_GROUP, &greq, sizeof(greq)) == -1) {
+			DEBUG_PRINTF("setsockopt MCAST_JOIN_SOURCE_GROUP failed");
+
+			return (-1);
+		}
+
+		return (0);
+	}
+#endif
+	DEBUG_PRINTF("Can't join to Source-Specific Multicast because of no compile time support");
+	errx(1, "Can't join to Source-Specific Multicast because of no compile time support");
+	/* NOTREACHED */
+
+	return (-1);
+}
+
+/*
+ * Join socket to multicast group (SSM). mcast_addr is multicast address, local_address is address
+ * of local interface to join on, remote_addrs is used for source of multicast, local_ifname
+ * is name of interface with local_address address and sock is socket to use.
+ * Function returns 0 on success, otherwise -1.
+ */
+int
+sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
+    const struct ai_list *remote_addrs, const char *local_ifname, int sock)
+{
+	struct ai_item *ai_item_i;
+
+	TAILQ_FOREACH(ai_item_i, remote_addrs, entries) {
+		if (sf_mcast_join_ssm_group(mcast_addr, local_addr,
+		    (const struct sockaddr *)&ai_item_i->sas, local_ifname, sock) == -1) {
+			return (-1);
+		}
 	}
 
 	return (0);

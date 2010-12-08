@@ -63,8 +63,8 @@ static void	usage();
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
-    struct ai_item *local_addr, int *wait_time, struct ai_item *mcast_addr, uint16_t *port,
-    uint8_t *ttl, int *single_addr)
+    struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
+    struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -82,12 +82,13 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*wait_time = DEFAULT_WAIT_TIME;
 	*ttl = DEFAULT_TTL;
 	*single_addr = 0;
+	*transport_method = SF_TM_ASM;
 	port_s = DEFAULT_PORT_S;
 	force = 0;
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46FVvi:m:p:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "46FVvi:M:m:p:t:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -104,6 +105,16 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'v':
 			logging_set_verbose(logging_get_verbose() + 1);
+			break;
+		case 'M':
+			if (strcmp(optarg, "asm") == 0) {
+				*transport_method = SF_TM_ASM;
+			} else if (strcmp(optarg, "ssm") == 0 && sf_is_ssm_supported()) {
+				*transport_method = SF_TM_SSM;
+			} else {
+				warnx("illegal parameter, -M argument -- %s", optarg);
+				goto error_usage_exit;
+			}
 			break;
 		case 'm':
 			mcast_addr_s = optarg;
@@ -580,6 +591,7 @@ static void
 usage()
 {
 
-	printf("usage: %s [-46FVv] [-i interval] [-m mcast_addr] [-p port]\n", PROGRAM_NAME);
-	printf("              [-t ttl] remote_addr...\n");
+	printf("usage: %s [-46FVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
+	    PROGRAM_NAME);
+	printf("              [-p port] [-t ttl] remote_addr...\n");
 }
