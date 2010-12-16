@@ -57,6 +57,7 @@ struct omping_instance {
 	int hn_max_len;
 	int ip_ver;
 	int mcast_socket;
+	int quiet;
 	int single_addr;
 	int ucast_socket;
 	int wait_time;
@@ -180,7 +181,8 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 
 	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
 	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
-	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr);
+	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
+	    &instance->quiet);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs);
 
@@ -512,8 +514,11 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		loss = (int)((1.0 - (float)received / (float)rh_item->client_info.seq_num) * 100.0);
 	}
 
-	print_packet_stats(rh_item->addr->host_name, instance->hn_max_len, msg_decoded->seq_num, 0,
-	    msg_len, dist_set, dist, rtt_set, rtt, avg_rtt, loss, ucast);
+	if (instance->quiet == 0) {
+		print_packet_stats(rh_item->addr->host_name, instance->hn_max_len,
+		    msg_decoded->seq_num, 0, msg_len, dist_set, dist, rtt_set, rtt, avg_rtt, loss,
+		    ucast);
+	}
 
 	return (0);
 }
@@ -665,8 +670,12 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		} else {
 			DEBUG_PRINTF("Client was not in query state. Put it to stop state");
 			rh_item->client_info.state = RH_CS_STOP;
-			print_client_state(rh_item->addr->host_name, instance->hn_max_len,
-			    instance->transport_method, NULL, &rh_item->addr->sas, RH_CS_STOP);
+
+			if (instance->quiet < 2) {
+				print_client_state(rh_item->addr->host_name, instance->hn_max_len,
+				    instance->transport_method, NULL, &rh_item->addr->sas,
+				    RH_CS_STOP);
+			}
 		}
 
 		return (-5);
@@ -700,9 +709,11 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 	if (old_cstate == RH_CS_INITIAL) {
 		rh_item->client_info.seq_num++;
 
-		print_client_state(rh_item->addr->host_name, instance->hn_max_len,
-		    instance->transport_method, &instance->mcast_addr.sas, &rh_item->addr->sas,
-		    RH_CS_QUERY);
+		if (instance->quiet < 2) {
+			print_client_state(rh_item->addr->host_name, instance->hn_max_len,
+			    instance->transport_method, &instance->mcast_addr.sas,
+			    &rh_item->addr->sas, RH_CS_QUERY);
+		}
 	}
 
 	return (ms_query(instance->ucast_socket, from, &instance->mcast_addr.sas,
@@ -732,9 +743,11 @@ omping_send_client_msgs(struct omping_instance *instance)
 			 */
 			if (util_time_absdiff(ci->last_init_ts, util_get_time()) >
 			    DEFAULT_WAIT_TIME) {
-				print_client_state(remote_host->addr->host_name,
-				    instance->hn_max_len, instance->transport_method, NULL,
-				    &remote_host->addr->sas, RH_CS_INITIAL);
+				if (instance->quiet < 2) {
+					print_client_state(remote_host->addr->host_name,
+					    instance->hn_max_len, instance->transport_method, NULL,
+					    &remote_host->addr->sas, RH_CS_INITIAL);
+				}
 
 				send_res = ms_init(instance->ucast_socket, &remote_host->addr->sas,
 				    &instance->mcast_addr.sas, ci->client_id, 0);
