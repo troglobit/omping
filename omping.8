@@ -14,12 +14,12 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 
-.TH omping 8 2010-11-18
+.TH omping 8 2010-12-22
 .SH NAME
 omping \- test IP multicast
 .SH SYNOPSIS
-\fBping\fR [\fB-46FVv\fR] [\fB-i \fIinterval\fR] [\fB-m \fImcast_addr\fR] [\fB-p \fIport\fR] [\fB-t
-\fIttl\fR] \fIremote_addr...
+\fBping\fR [\fB-46FqVv\fR] [\fB-i \fIinterval\fR] [\fB-M \fItransport_method\fR]
+[\fB-m \fImcast_addr\fR] [\fB-p \fIport\fR] [\fB-t \fIttl\fR] \fIremote_addr...
 .SH DESCRIPTION
 \fBomping\fR is program which uses User Datagram Protocol to determine if computer is able to send
 and/or receive IP Unicast and Multicast packets from the network. It's designed to be used in very
@@ -38,10 +38,16 @@ Force usage of IPv6.
 .IP \fB-F\fR
 Allow entering of arguments which are not allowed or not recommended by the specification. This is
 typically the interval parameter. This option may be used multiple times.
+.IP \fB-q\fR
+Quiet output. Nothing is displayed except state changes and summary. Option can be used twice and
+then only summary is displayed.
 .IP \fB-V\fR
 Display version and quit.
 .IP \fB-v\fR
 Set level of verbosity. Parameter can be used multiple times to achieve higher verbosity.
+.IP \fB-M \fItransport_method\fR
+Set transport method to use. This can be \fBasm\fR for Any-source Multicast and \fBssm\fR for
+Source-specific Multicast.
 .IP \fB-i\ \fIinterval\fR
 Wait \fIinterval\fR seconds between sending each request packet. The default is to wait for one
 second between each packet.
@@ -56,6 +62,13 @@ Time-To-Live of sent packets.
 List of addresses to test. One of them must be address of local internet interface. This
 local address is used for bind and listening on for unicast packets. It's also used to determine
 which interface should be used for sending multicast replies.
+.PP
+When using \fBomping\fR for fault isolation, it should first be run against local internet
+interface only, to verify that the local network interface is up and running, and firewall
+is correctly configured. This mode is available by entering only local IP address.
+
+Program is normally terminated by SIGINT. After signal receive summary is displayed. You can also
+display summary during running by sending SIGINFO or SIGUSR1 signal.
 .SH EXAMPLE
 The following commands and output is a typical way how to find-out and solve network problems
 using omping. In this situation, we have 3 computers named node-01, node-02 and node-03 with IP addresses
@@ -115,13 +128,9 @@ node-03 : multicast, xmt/rcv/%loss = 289/289/0%, min/avg/max = 0.325/0.356/0.548
 .IP \[bu] 2
 Packet duplicate detection is not implemented.
 .IP \[bu]
-SSM multicast is not implemented.
-.IP \[bu]
 Actually computed RTT is not RTT taken from packet, but end-to-end delivery.
 .IP \[bu]
 It's impossible to set size of send/receive buffer.
-.IP \[bu]
-No quite mode.
 .IP \[bu]
 No count mode.
 .SH SEE ALSO
