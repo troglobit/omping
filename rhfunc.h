@@ -51,32 +51,32 @@ enum rh_server_state {
  * Remote host info item, client info part
  */
 struct rh_item_ci {
-	enum rh_client_state state;
-	char client_id[CLIENTID_LEN];
-	struct timeval last_init_ts;
-	char *ses_id;
-	double rtt_max[2];
-	double rtt_min[2];
-	double rtt_sum[2];
-	size_t ses_id_len;
-	uint32_t seq_num;
-	uint32_t no_err_msgs;
-	uint32_t no_received[2];
+	enum		rh_client_state state;
+	char		client_id[CLIENTID_LEN];
+	struct timeval	last_init_ts;
+	char		*ses_id;
+	double		rtt_max[2];
+	double		rtt_min[2];
+	double		rtt_sum[2];
+	size_t		ses_id_len;
+	uint32_t	seq_num;
+	uint32_t	no_err_msgs;
+	uint32_t	no_received[2];
 };
 
 /*
  * Remote host info item, server info part
  */
 struct rh_item_si {
-	enum rh_server_state state;
-	char ses_id[SESSIONID_LEN];
+	enum		rh_server_state state;
+	char		ses_id[SESSIONID_LEN];
 };
 
 /*
  * Remote host info item. This is intended to use with TAILQ list.
  */
 struct rh_item {
-	struct ai_item *addr;
+	struct ai_item	*addr;
 	struct rh_item_ci client_info;
 	struct rh_item_si server_info;
 	TAILQ_ENTRY(rh_item) entries;

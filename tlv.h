@@ -63,9 +63,9 @@ enum tlv_opt_type {
  * tlv_iterator type
  */
 struct tlv_iterator {
-	const char *msg;
-	size_t msg_len;
-	size_t pos;
+	const char	*msg;
+	size_t		msg_len;
+	size_t		pos;
 };
 
 /*

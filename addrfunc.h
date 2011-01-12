@@ -50,7 +50,7 @@ struct ai_item {
 		struct addrinfo *ai;
 		struct sockaddr_storage sas;
 	};
-	char *host_name;
+	char		*host_name;
 	TAILQ_ENTRY(ai_item) entries;
 };
 

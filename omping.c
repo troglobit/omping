@@ -49,20 +49,21 @@
  * Structure with internal omping data
  */
 struct omping_instance {
-	struct ai_item local_addr, mcast_addr;
-	struct rh_list remote_hosts;
-	struct ai_list remote_addrs;
+	struct ai_item	local_addr;
+	struct ai_item	mcast_addr;
+	struct rh_list	remote_hosts;
+	struct ai_list	remote_addrs;
 	enum sf_transport_method transport_method;
-	char *local_ifname;
-	int hn_max_len;
-	int ip_ver;
-	int mcast_socket;
-	int quiet;
-	int single_addr;
-	int ucast_socket;
-	int wait_time;
-	uint16_t port;
-	uint8_t ttl;
+	char		*local_ifname;
+	int		hn_max_len;
+	int		ip_ver;
+	int		mcast_socket;
+	int		quiet;
+	int		single_addr;
+	int		ucast_socket;
+	int		wait_time;
+	uint16_t	port;
+	uint8_t		ttl;
 };
 
 /*

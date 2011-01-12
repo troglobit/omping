@@ -55,7 +55,7 @@ struct msg_decoded {
 	int		 request_opt_server_tstamp;
 	int		 seq_num_isset;
 	int		 server_tstamp_isset;
-	const char 	*client_id;
+	const char	*client_id;
 	const char	*mcast_grp;
 	const char	*server_info;
 	const char	*ses_id;
