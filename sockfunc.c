@@ -165,11 +165,6 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 		return (-1);
 	}
 
-	if (sf_set_socket_reuse(sock) == -1) {
-		return (-1);
-	}
-
-
 	if (sf_bind_socket(local_addr, sock) == -1) {
 		return (-1);
 	}
