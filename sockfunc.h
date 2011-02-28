@@ -56,6 +56,7 @@ extern int	sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr,
     const struct sockaddr *local_addr, const struct ai_list *remote_addrs,
     const char *local_ifname, int sock);
 
+extern int	sf_set_socket_ipv6only(const struct sockaddr *sa, int sock);
 extern int	sf_set_socket_mcast_if(const struct sockaddr *local_addr, int sock,
     const char *local_ifname);
 

@@ -70,6 +70,12 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
+	if (mcast_addr->sa_family == AF_INET6) {
+		if (sf_set_socket_ipv6only(mcast_addr, sock) == -1) {
+			return (-1);
+		}
+	}
+
 	if (sf_set_socket_ttl(mcast_addr, 1, sock, ttl) == -1) {
 		return (-1);
 	}
@@ -141,6 +147,12 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 	sock = sf_create_udp_socket(local_addr);
 	if (sock == -1) {
 		return (-1);
+	}
+
+	if (local_addr->sa_family == AF_INET6) {
+		if (sf_set_socket_ipv6only(local_addr, sock) == -1) {
+			return (-1);
+		}
 	}
 
 	if (sf_set_socket_ttl(local_addr, 0, sock, ttl) == -1) {
@@ -338,6 +350,32 @@ sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr, const struct soc
 			return (-1);
 		}
 	}
+
+	return (0);
+}
+
+/*
+ * Set ipv6 only flag to socket. Function works only for socket with family AF_INET6.
+ * Function returns 0 on success, otherwise -1.
+ */
+int
+sf_set_socket_ipv6only(const struct sockaddr *sa, int sock)
+{
+	int opt;
+
+	opt = 1;
+
+	if (sa->sa_family != AF_INET6) {
+		return (-1);
+	}
+
+#ifdef IPV6_V6ONLY
+	if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt)) == -1) {
+		DEBUG_PRINTF("setsockopt IPV6_V6ONLY failed");
+
+		return (-1);
+	}
+#endif
 
 	return (0);
 }
