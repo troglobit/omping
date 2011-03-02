@@ -31,7 +31,7 @@ extern "C" {
 extern int	cli_parse(struct ai_list *ai_list, int argc, char * const argv[],
     char **local_ifname, int *ip_ver, struct ai_item *local_addr, int *wait_time,
     enum sf_transport_method *transport_method, struct ai_item *mcast_addr,
-    uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet);
+    uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet, int *cont_stat);
 
 #ifdef __cplusplus
 }

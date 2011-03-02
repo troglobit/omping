@@ -60,11 +60,13 @@ static void	usage();
  * by requested port (string value) or will be NULL. ai_list will be initialized and requested
  * hostnames will be stored there. ttl is pointer where user set TTL or default TTL will be stored.
  * single_addr is boolean set if only one remote address is entered. quiet is flag for quiet mode.
+ * cont_stat is flag for enable continuous statistic.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
-    struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet)
+    struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
+    int *cont_stat)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -77,6 +79,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	int num;
 
 	*ip_ver = 0;
+	*cont_stat = 0;
 	mcast_addr_s = NULL;
 	*local_ifname = NULL;
 	*wait_time = DEFAULT_WAIT_TIME;
@@ -89,13 +92,16 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46FqVvi:M:m:p:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CFqVvi:M:m:p:t:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
 			break;
 		case '6':
 			*ip_ver = 6;
+			break;
+		case 'C':
+			(*cont_stat)++;
 			break;
 		case 'F':
 			force++;
@@ -595,7 +601,7 @@ static void
 usage()
 {
 
-	printf("usage: %s [-46FqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
+	printf("usage: %s [-46CFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
 	    PROGRAM_NAME);
 	printf("              [-p port] [-t ttl] remote_addr...\n");
 }

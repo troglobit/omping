@@ -55,6 +55,7 @@ struct omping_instance {
 	struct ai_list	remote_addrs;
 	enum sf_transport_method transport_method;
 	char		*local_ifname;
+	int		cont_stat;
 	int		hn_max_len;
 	int		ip_ver;
 	int		mcast_socket;
@@ -118,7 +119,7 @@ static void	print_final_stats(const struct rh_list *remote_hosts, int host_name_
 
 static void	print_packet_stats(const char *host_name, int host_name_len, uint32_t seq,
     int is_dup, size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt,
-    int loss, int ucast);
+    int loss, int ucast, int cont_stat);
 
 static void	siginfo_handler(int sig);
 static void	sigint_handler(int sig);
@@ -183,7 +184,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
 	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
 	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
-	    &instance->quiet);
+	    &instance->quiet, &instance->cont_stat);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs);
 
@@ -518,7 +519,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	if (instance->quiet == 0) {
 		print_packet_stats(rh_item->addr->host_name, instance->hn_max_len,
 		    msg_decoded->seq_num, 0, msg_len, dist_set, dist, rtt_set, rtt, avg_rtt, loss,
-		    ucast);
+		    ucast, instance->cont_stat);
 	}
 
 	return (0);
@@ -925,12 +926,13 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
  * not. dist is distance of packet (how TTL was changed). rtt_set is boolean variable with
  * information if rtt (current round trip time) and avg_rtt (average round trip time) is set and
  * computed or not. loss is number of lost packets. ucast is boolean variable saying if packet was
- * unicast (true) or multicast (false).
+ * unicast (true) or multicast (false). cont_stat is boolean variable saying, if to display
+ * continuous statistic or not.
  */
 static void
 print_packet_stats(const char *host_name, int host_name_len, uint32_t seq, int is_dup,
     size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt, int loss,
-    int ucast)
+    int ucast, int cont_stat)
 {
 	char *cast_str;
 
@@ -955,13 +957,16 @@ print_packet_stats(const char *host_name, int host_name_len, uint32_t seq, int i
 		printf(", time=%.3fms", rtt);
 	}
 
-	printf(" (");
+	if (cont_stat) {
+		printf(" (");
 
-	if (rtt_set) {
-		printf("%.3f avg, ", avg_rtt);
+		if (rtt_set) {
+			printf("%.3f avg, ", avg_rtt);
+		}
+
+		printf("%d%% loss)", loss);
 	}
 
-	printf("%d%% loss)", loss);
 	printf("\n");
 }
 

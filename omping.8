@@ -23,7 +23,7 @@
 .Nd test IP multicast
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46FqVv
+.Op Fl 46CFqVv
 .Op Fl i Ar interval
 .Op Fl M Ar transport_method
 .Op Fl m Ar mcast_addr
@@ -59,6 +59,8 @@ Its arguments are as follows:
 Force usage of IPv4.
 .It Fl 6
 Force usage of IPv6.
+.It Fl C
+Display continuous statistics for every reply message.
 .It Fl F
 Allow entering of arguments which are not allowed or not recommended by the specification. This is
 typically the interval parameter. This option may be used multiple times.
@@ -116,10 +118,10 @@ on all of nodes we should be able to seen similar output
 .Dl node-03 : waiting for response msg
 .Dl node-01 : joined (S,G) = (*, 232.43.211.234), pinging
 .Dl node-03 : joined (S,G) = (*, 232.43.211.234), pinging
-.Dl node-01 :   unicast, seq=1, size=69 bytes, dist=0, time=0.192ms (0.192 avg, 0% loss)
-.Dl node-01 : multicast, seq=1, size=69 bytes, dist=0, time=0.284ms (0.284 avg, 0% loss)
-.Dl node-03 :   unicast, seq=1, size=69 bytes, dist=0, time=0.279ms (0.279 avg, 0% loss)
-.Dl node-03 : multicast, seq=1, size=69 bytes, dist=0, time=0.360ms (0.360 avg, 0% loss)
+.Dl node-01 :   unicast, seq=1, size=69 bytes, dist=0, time=0.192ms
+.Dl node-01 : multicast, seq=1, size=69 bytes, dist=0, time=0.284ms
+.Dl node-03 :   unicast, seq=1, size=69 bytes, dist=0, time=0.279ms
+.Dl node-03 : multicast, seq=1, size=69 bytes, dist=0, time=0.360ms
 .Pp
 The first two lines tell us, that node-02 (actual node) is waiting for a response
 message from node-01 and node-03. The second two lines contain information, that
