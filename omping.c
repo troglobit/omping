@@ -80,6 +80,8 @@ static int display_stats_requested;
 /*
  * Function prototypes
  */
+static int	get_packet_loss_percent(uint32_t packet_sent, uint32_t packet_received);
+
 static int	omping_check_msg_common(const struct msg_decoded *msg_decoded);
 
 static void	omping_instance_create(struct omping_instance *instance, int argc,
@@ -147,6 +149,23 @@ main(int argc, char *argv[])
 	omping_instance_free(&instance);
 
 	return 0;
+}
+
+/*
+ * Compute packet loss in percent from number of send and received packets
+ */
+static int
+get_packet_loss_percent(uint32_t packet_sent, uint32_t packet_received){
+	int loss;
+
+	if (packet_received > packet_sent) {
+		DEBUG_PRINTF("packet_received > packet_sent");
+		loss = 0;
+	} else {
+		loss = ((1.0 - (float)packet_received / (float)packet_sent) * 100.0);
+	}
+
+	return (loss);
 }
 
 /*
@@ -493,7 +512,10 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	received = ++rh_item->client_info.no_received[cast_index];
 	if (rtt_set) {
 		rh_item->client_info.rtt_sum[cast_index] += rtt;
-		avg_rtt = rh_item->client_info.rtt_sum[cast_index] / received;
+
+		if (instance->cont_stat) {
+			avg_rtt = rh_item->client_info.rtt_sum[cast_index] / received;
+		}
 
 		if (first_packet) {
 			rh_item->client_info.rtt_max[cast_index] = rtt;
@@ -509,11 +531,10 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		}
 	}
 
-	if (received > rh_item->client_info.seq_num) {
-		DEBUG_PRINTF("received > seq_num");
-		loss = 0;
+	if (instance->cont_stat) {
+		loss = get_packet_loss_percent(rh_item->client_info.seq_num, received);
 	} else {
-		loss = (int)((1.0 - (float)received / (float)rh_item->client_info.seq_num) * 100.0);
+		loss = 0;
 	}
 
 	if (instance->quiet == 0) {
@@ -894,12 +915,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 				break;
 			}
 
-			if (received > rh_item->client_info.seq_num) {
-				DEBUG_PRINTF("received > seq_num");
-				loss = 0;
-			} else {
-				loss = (int)((1.0 - (float)received / (float)ci->seq_num) * 100.0);
-			}
+			loss = get_packet_loss_percent(rh_item->client_info.seq_num, received);
 
 			if (received == 0) {
 				avg_rtt = 0;
