@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd March 02, 2011
+.Dd March 31, 2011
 .Dt OMPING 8
 .Os
 .
@@ -28,6 +28,7 @@
 .Op Fl M Ar transport_method
 .Op Fl m Ar mcast_addr
 .Op Fl p Ar port
+.Op Fl T Ar timeout
 .Op Fl t Ar ttl
 .Ar remote_addr...
 .Sh DESCRIPTION
@@ -87,6 +88,11 @@ Multicast address to listen on for multicast answer messages. Default is 232.43.
 and ff3e::4321:1234 for IPv6.
 .It Fl p Ar port
 Port to bind and listen on for both unicast and multicast messages. Default is 4321.
+.It Fl T Ar timeout
+Specify a timeout, in seconds, before
+.Nm
+exits regardless of how many packets have
+been received.
 .It Fl t Ar ttl
 Time-To-Live of sent packets.
 .It Ar remote_addr

@@ -60,13 +60,14 @@ static void	usage();
  * by requested port (string value) or will be NULL. ai_list will be initialized and requested
  * hostnames will be stored there. ttl is pointer where user set TTL or default TTL will be stored.
  * single_addr is boolean set if only one remote address is entered. quiet is flag for quiet mode.
- * cont_stat is flag for enable continuous statistic.
+ * cont_stat is flag for enable continuous statistic. timeout_time is number of miliseconds after
+ * which client exits regardless to number of received/sent packets.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
-    int *cont_stat)
+    int *cont_stat, int *timeout_time)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -87,12 +88,13 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*single_addr = 0;
 	*quiet = 0;
 	*transport_method = SF_TM_ASM;
+	*timeout_time = 0;
 	port_s = DEFAULT_PORT_S;
 	force = 0;
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CFqVvi:M:m:p:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CFqVvi:M:m:p:T:t:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -139,6 +141,14 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 				goto error_usage_exit;
 			}
 			*ttl = num;
+			break;
+		case 'T':
+			numd = strtod(optarg, &ep);
+			if (numd < 0 || *ep != '\0') {
+				warnx("illegal number, -T argument -- %s", optarg);
+				goto error_usage_exit;
+			}
+			*timeout_time = numd * 1000.0;
 			break;
 		case 'i':
 			numd = strtod(optarg, &ep);
@@ -603,5 +613,5 @@ usage()
 
 	printf("usage: %s [-46CFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
 	    PROGRAM_NAME);
-	printf("              [-p port] [-t ttl] remote_addr...\n");
+	printf("              [-p port] [-T timeout] [-t ttl] remote_addr...\n");
 }

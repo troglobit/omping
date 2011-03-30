@@ -61,6 +61,7 @@ struct omping_instance {
 	int		mcast_socket;
 	int		quiet;
 	int		single_addr;
+	int		timeout_time;
 	int		ucast_socket;
 	int		wait_time;
 	uint16_t	port;
@@ -89,9 +90,10 @@ static void	omping_instance_create(struct omping_instance *instance, int argc,
 
 static void	omping_instance_free(struct omping_instance *instance);
 
-static int	omping_poll_receive_loop(struct omping_instance *instance);
+static int	omping_poll_receive_loop(struct omping_instance *instance, int timeout_time);
 
-static int	omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp);
+static int	omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp,
+    int timeout_time);
 
 static int	omping_process_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct sockaddr_storage *from, uint8_t ttl, int ucast);
@@ -111,7 +113,7 @@ static int	omping_process_response_msg(struct omping_instance *instance, const c
 
 static int	omping_send_client_msgs(struct omping_instance *instance);
 
-static void	omping_send_receive_loop(struct omping_instance *instance);
+static void	omping_send_receive_loop(struct omping_instance *instance, int timeout_time);
 
 static void	print_client_state(const char *host_name, int host_name_len,
     enum sf_transport_method transport_method, const struct sockaddr_storage *mcast_addr,
@@ -144,7 +146,7 @@ main(int argc, char *argv[])
 
 	register_signal_handlers();
 
-	omping_send_receive_loop(&instance);
+	omping_send_receive_loop(&instance, instance.timeout_time);
 
 	omping_instance_free(&instance);
 
@@ -203,7 +205,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
 	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
 	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
-	    &instance->quiet, &instance->cont_stat);
+	    &instance->quiet, &instance->cont_stat, &instance->timeout_time);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs);
 
@@ -247,11 +249,11 @@ omping_instance_free(struct omping_instance *instance)
 
 /*
  * Loop for receiving messages for given time (instance->wait_time) and process them. Instance is
- * omping instance.
+ * omping instance. timeout_time is maximum time to wait.
  * Function returns 0 on success, or -2 on EINTR.
  */
 static int
-omping_poll_receive_loop(struct omping_instance *instance)
+omping_poll_receive_loop(struct omping_instance *instance, int timeout_time)
 {
 	char msg[MAX_MSG_SIZE];
 	struct sockaddr_storage from;
@@ -265,7 +267,7 @@ omping_poll_receive_loop(struct omping_instance *instance)
 	memset(&old_tstamp, 0, sizeof(old_tstamp));
 
 	do {
-		poll_res = omping_poll_timeout(instance, &old_tstamp);
+		poll_res = omping_poll_timeout(instance, &old_tstamp, timeout_time);
 		if (poll_res == -2) {
 			return (-2);
 			/* NOTREACHED */
@@ -319,16 +321,16 @@ omping_poll_receive_loop(struct omping_instance *instance)
  * Wait for messages on sockets. instance is omping_instance and old_tstamp is temporary variable
  * which must be set to zero on first call. Function handles EINTR for display statistics.
  * Function is wrapper on top of rs_poll_timeout, but handles -1 error code. Other return values
- * have same meaning.
+ * have same meaning. timeout_time is maximum time to wait
  */
 static int
-omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp)
+omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp, int timeout_time)
 {
 	int poll_res;
 
 	do {
 		poll_res = rs_poll_timeout(instance->ucast_socket, instance->mcast_socket,
-		    instance->wait_time, old_tstamp);
+		    timeout_time, old_tstamp);
 
 		switch (poll_res) {
 		case -1:
@@ -823,25 +825,68 @@ omping_send_client_msgs(struct omping_instance *instance)
 
 /*
  * Main loop of omping. It is used for receiving and sending messages. On the end, it prints final
- * statistics. instance is omping instance.
+ * statistics. instance is omping instance. timeout_time is maximum amount of time to keep loop
+ * running (after this time, loop is ended).
  */
 static void
-omping_send_receive_loop(struct omping_instance *instance)
+omping_send_receive_loop(struct omping_instance *instance, int timeout_time)
 {
+	struct timeval start_time;
 	int clients_res;
+	int loop_end;
 	int poll_rec_res;
+	int receive_timeout;
+	uint64_t time_diff;
+
+	if (timeout_time != 0) {
+		start_time = util_get_time();
+	}
+
+	loop_end = 0;
 
 	do {
 		clients_res = omping_send_client_msgs(instance);
+		if (clients_res != 0 && clients_res != -2) {
+			err(3, "unknown value of clients_res %u", clients_res);
+			/* NOTREACHED */
+		}
+
 		if (clients_res == -2) {
+			if (exit_requested) {
+				loop_end = 1;
+			}
+
 			continue;
 		}
 
-		poll_rec_res = omping_poll_receive_loop(instance);
-		if (poll_rec_res == -2) {
-			continue;
+		if (timeout_time != 0) {
+			time_diff = util_time_absdiff(start_time, util_get_time());
+
+			if (time_diff + instance->wait_time > timeout_time) {
+				receive_timeout = timeout_time - time_diff;
+			} else {
+				receive_timeout = instance->wait_time;
+			}
+		} else {
+			receive_timeout = instance->wait_time;
 		}
-	} while (!exit_requested);
+
+		poll_rec_res = omping_poll_receive_loop(instance, receive_timeout);
+
+		if (poll_rec_res != 0 && poll_rec_res != -2) {
+			err(3, "unknown value of poll_rec_res %u", poll_rec_res);
+			/* NOTREACHED */
+		}
+
+		if (exit_requested) {
+			loop_end = 1;
+		}
+
+		if (timeout_time != 0 &&
+		    util_time_absdiff(start_time, util_get_time()) >= timeout_time) {
+			loop_end = 1;
+		}
+	} while (!loop_end);
 
 	print_final_stats(&instance->remote_hosts, instance->hn_max_len);
 }
