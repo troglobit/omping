@@ -80,7 +80,7 @@ static int display_stats_requested;
 /*
  * Function prototypes
  */
-static int	get_packet_loss_percent(uint32_t packet_sent, uint32_t packet_received);
+static int	get_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received);
 
 static int	omping_check_msg_common(const struct msg_decoded *msg_decoded);
 
@@ -155,14 +155,14 @@ main(int argc, char *argv[])
  * Compute packet loss in percent from number of send and received packets
  */
 static int
-get_packet_loss_percent(uint32_t packet_sent, uint32_t packet_received){
+get_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received) {
 	int loss;
 
 	if (packet_received > packet_sent) {
 		DEBUG_PRINTF("packet_received > packet_sent");
 		loss = 0;
 	} else {
-		loss = ((1.0 - (float)packet_received / (float)packet_sent) * 100.0);
+		loss = ((1.0 - (double)packet_received / (double)packet_sent) * 100.0);
 	}
 
 	return (loss);
@@ -460,7 +460,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	struct rh_item *rh_item;
 	double rtt;
 	double avg_rtt;
-	uint32_t received;
+	uint64_t received;
 	int cast_index;
 	int dist_set;
 	int first_packet;
@@ -532,7 +532,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	}
 
 	if (instance->cont_stat) {
-		loss = get_packet_loss_percent(rh_item->client_info.seq_num, received);
+		loss = get_packet_loss_percent(rh_item->client_info.no_sent, received);
 	} else {
 		loss = 0;
 	}
@@ -731,6 +731,7 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 
 	if (old_cstate == RH_CS_INITIAL) {
 		rh_item->client_info.seq_num++;
+		rh_item->client_info.no_sent++;
 
 		if (instance->quiet < 2) {
 			print_client_state(rh_item->addr->host_name, instance->hn_max_len,
@@ -779,8 +780,16 @@ omping_send_client_msgs(struct omping_instance *instance)
 			}
 			break;
 		case RH_CS_QUERY:
+			ci->seq_num++;
+			ci->no_sent++;
+
+			if (ci->no_sent == ~((uint64_t)0)) {
+				ci->state = RH_CS_STOP;
+				VERBOSE_PRINTF("Number of sent messages for %s exhausted. "
+				    "Moving to stop state.", remote_host->addr->host_name);
+			}
 			send_res = ms_query(instance->ucast_socket, &remote_host->addr->sas,
-			    &instance->mcast_addr.sas, ++ci->seq_num, ci->client_id,
+			    &instance->mcast_addr.sas, ci->seq_num, ci->client_id,
 			    ci->ses_id, ci->ses_id_len);
 			break;
 		case RH_CS_STOP:
@@ -897,7 +906,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 	double avg_rtt;
 	int i;
 	int loss;
-	uint32_t received;
+	uint64_t received;
 
 	printf("\n");
 
@@ -915,7 +924,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 				break;
 			}
 
-			loss = get_packet_loss_percent(rh_item->client_info.seq_num, received);
+			loss = get_packet_loss_percent(rh_item->client_info.no_sent, received);
 
 			if (received == 0) {
 				avg_rtt = 0;
@@ -926,7 +935,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 			printf("%5scast, ", cast_str);
 
 			printf("xmt/rcv/%%loss = ");
-			printf("%"PRIu32"/%"PRIu32"/%d%%", ci->seq_num, received, loss);
+			printf("%"PRIu64"/%"PRIu64"/%d%%", ci->no_sent, received, loss);
 
 			printf(", min/avg/max = ");
 			printf("%.3f/%.3f/%.3f", ci->rtt_min[i], avg_rtt, ci->rtt_max[i]);

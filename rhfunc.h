@@ -60,8 +60,9 @@ struct rh_item_ci {
 	double		rtt_sum[2];
 	size_t		ses_id_len;
 	uint32_t	seq_num;
-	uint32_t	no_err_msgs;
-	uint32_t	no_received[2];
+	uint64_t	no_err_msgs;
+	uint64_t	no_received[2];
+	uint64_t	no_sent;
 };
 
 /*
