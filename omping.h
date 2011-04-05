@@ -36,6 +36,12 @@ extern "C" {
 #define DEFAULT_WAIT_TIME	1000
 #define DEFAULT_TTL		64
 
+/*
+ * Default Wait For Finish multiply constant. wait_time is multiplied with following
+ * value.
+ */
+#define DEFAULT_WFF_TIME_MUL	3
+
 #define PROTOCOL_VERSION	2
 
 #define MAX_MSG_SIZE		65535

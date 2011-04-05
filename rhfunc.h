@@ -45,6 +45,7 @@ enum rh_client_state {
 enum rh_server_state {
 	RH_SS_INITIAL,
 	RH_SS_ANSWER,
+	RH_SS_FINISHING,
 };
 
 /*
@@ -98,6 +99,7 @@ extern void		 rh_list_gen_cid(struct rh_list *rh_list,
 
 extern int		 rh_list_hn_max_len(struct rh_list *rh_list);
 
+extern void		 rh_list_put_to_finish_state(struct rh_list *rh_list);
 
 #ifdef __cplusplus
 }

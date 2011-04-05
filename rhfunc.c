@@ -144,3 +144,18 @@ rh_list_hn_max_len(struct rh_list *rh_list)
 
 	return (max_len > INT_MAX ? INT_MAX : (int)max_len);
 }
+
+/*
+ * Move all items in rh_list to finish state. This means, that server state is put to
+ * RH_SS_FINISHING and client state is moved to RH_CS_STOP
+ */
+void
+rh_list_put_to_finish_state(struct rh_list *rh_list)
+{
+	struct rh_item *rh_item;
+
+	TAILQ_FOREACH(rh_item, rh_list, entries) {
+		rh_item->server_info.state = RH_SS_FINISHING;
+		rh_item->client_info.state = RH_CS_STOP;
+	}
+}

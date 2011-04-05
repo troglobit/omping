@@ -63,6 +63,7 @@ struct omping_instance {
 	int		single_addr;
 	int		timeout_time;
 	int		ucast_socket;
+	int		wait_for_finish_time;
 	int		wait_time;
 	uint16_t	port;
 	uint8_t		ttl;
@@ -113,7 +114,8 @@ static int	omping_process_response_msg(struct omping_instance *instance, const c
 
 static int	omping_send_client_msgs(struct omping_instance *instance);
 
-static void	omping_send_receive_loop(struct omping_instance *instance, int timeout_time);
+static void	omping_send_receive_loop(struct omping_instance *instance, int timeout_time,
+    int final_stats);
 
 static void	print_client_state(const char *host_name, int host_name_len,
     enum sf_transport_method transport_method, const struct sockaddr_storage *mcast_addr,
@@ -141,12 +143,31 @@ int
 main(int argc, char *argv[])
 {
 	struct omping_instance instance;
+	int wait_for_finish_time;
 
 	omping_instance_create(&instance, argc, argv);
 
 	register_signal_handlers();
 
-	omping_send_receive_loop(&instance, instance.timeout_time);
+	omping_send_receive_loop(&instance, instance.timeout_time, 1);
+
+	if (!instance.single_addr && instance.wait_for_finish_time != 0) {
+		exit_requested = 0;
+
+		DEBUG_PRINTF("Moving all clients to stop state and server to finishing state");
+		rh_list_put_to_finish_state(&instance.remote_hosts);
+
+		if (instance.wait_for_finish_time == -1) {
+			wait_for_finish_time = 0;
+		} else {
+			wait_for_finish_time = instance.wait_for_finish_time;
+		}
+
+		VERBOSE_PRINTF("Waiting for %d ms to inform other nodes about instance exit",
+		    instance.wait_for_finish_time);
+
+		omping_send_receive_loop(&instance, wait_for_finish_time, 0);
+	}
 
 	omping_instance_free(&instance);
 
@@ -205,7 +226,8 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
 	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
 	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
-	    &instance->quiet, &instance->cont_stat, &instance->timeout_time);
+	    &instance->quiet, &instance->cont_stat, &instance->timeout_time,
+	    &instance->wait_for_finish_time);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs);
 
@@ -570,6 +592,13 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
 		    msg_decoded, from));
 	}
 
+	if (rh_item->server_info.state == RH_SS_FINISHING) {
+		DEBUG_PRINTF("We are in finishing state. Sending request to stop.");
+
+		return (ms_stop(instance->ucast_socket, &instance->mcast_addr.sas,
+		    msg_decoded, from));
+	}
+
 	if (!msg_decoded->mcast_prefix_isset) {
 		DEBUG_PRINTF("Mcast prefix is not set");
 
@@ -831,10 +860,11 @@ omping_send_client_msgs(struct omping_instance *instance)
 /*
  * Main loop of omping. It is used for receiving and sending messages. On the end, it prints final
  * statistics. instance is omping instance. timeout_time is maximum amount of time to keep loop
- * running (after this time, loop is ended).
+ * running (after this time, loop is ended). final_stats is boolean flag which determines if final
+ * statistics should be displayed or not.
  */
 static void
-omping_send_receive_loop(struct omping_instance *instance, int timeout_time)
+omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int final_stats)
 {
 	struct timeval start_time;
 	int clients_res;
@@ -893,7 +923,9 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time)
 		}
 	} while (!loop_end);
 
-	print_final_stats(&instance->remote_hosts, instance->hn_max_len);
+	if (final_stats) {
+		print_final_stats(&instance->remote_hosts, instance->hn_max_len);
+	}
 }
 
 /*

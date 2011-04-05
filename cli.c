@@ -61,13 +61,14 @@ static void	usage();
  * hostnames will be stored there. ttl is pointer where user set TTL or default TTL will be stored.
  * single_addr is boolean set if only one remote address is entered. quiet is flag for quiet mode.
  * cont_stat is flag for enable continuous statistic. timeout_time is number of miliseconds after
- * which client exits regardless to number of received/sent packets.
+ * which client exits regardless to number of received/sent packets. wait_for_finish_time is number
+ * of miliseconds to wait before exit to allow other nodes not to screw up final statistics.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
-    int *cont_stat, int *timeout_time)
+    int *cont_stat, int *timeout_time, int *wait_for_finish_time)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -78,6 +79,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	int ch;
 	int force;
 	int num;
+	int wait_for_finish_time_set;
 
 	*ip_ver = 0;
 	*cont_stat = 0;
@@ -89,12 +91,14 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*quiet = 0;
 	*transport_method = SF_TM_ASM;
 	*timeout_time = 0;
+	*wait_for_finish_time = 0;
 	port_s = DEFAULT_PORT_S;
 	force = 0;
+	wait_for_finish_time_set = 0;
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CFqVvi:M:m:p:T:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CFqVvi:M:m:p:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -158,6 +162,15 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			}
 			*wait_time = numd * 1000.0;
 			break;
+		case 'w':
+			numd = strtod(optarg, &ep);
+			if ((numd < 0 && numd != -1) || *ep != '\0') {
+				warnx("illegal number, -w argument -- %s", optarg);
+				goto error_usage_exit;
+			}
+			wait_for_finish_time_set = 1;
+			*wait_for_finish_time = numd * 1000.0;
+			break;
 		case '?':
 			goto error_usage_exit;
 			/* NOTREACHED */
@@ -192,6 +205,13 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			    *wait_time);
 			goto error_usage_exit;
 		}
+	}
+
+	/*
+	 * Computed params
+	 */
+	if (!wait_for_finish_time_set) {
+		*wait_for_finish_time = *wait_time * DEFAULT_WFF_TIME_MUL;
 	}
 
 	TAILQ_INIT(ai_list);
@@ -613,5 +633,5 @@ usage()
 
 	printf("usage: %s [-46CFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
 	    PROGRAM_NAME);
-	printf("              [-p port] [-T timeout] [-t ttl] remote_addr...\n");
+	printf("              [-p port] [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n");
 }
