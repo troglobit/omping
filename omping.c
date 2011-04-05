@@ -625,7 +625,7 @@ omping_process_query_msg(struct omping_instance *instance, const char *msg, size
 	}
 
 	if (rh_item->server_info.state != RH_SS_ANSWER) {
-		DEBUG_PRINTF("Client is not in answer state");
+		DEBUG_PRINTF("Server is not in answer state");
 
 		return (ms_stop(instance->ucast_socket, &instance->mcast_addr.sas,
 		    msg_decoded, from));
