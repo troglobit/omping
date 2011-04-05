@@ -691,6 +691,11 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 			DEBUG_PRINTF("Client was in query state. Put to initial state");
 
 			rh_item->client_info.state = RH_CS_INITIAL;
+			/*
+			 * Technically, packet was sent and also received so no lost at all
+			 */
+			rh_item->client_info.no_sent--;
+
 			util_gen_cid(rh_item->client_info.client_id, &instance->local_addr);
 		} else {
 			DEBUG_PRINTF("Client was not in query state. Put it to stop state");
