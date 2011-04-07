@@ -514,6 +514,11 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		return (-5);
 	}
 
+	if (rh_item->client_info.state != RH_CS_QUERY) {
+		DEBUG_PRINTF("Client is not in query state. Ignoring message");
+		return (-5);
+	}
+
 	if (ttl > 0 && msg_decoded->ttl > 0) {
 		dist_set = 1;
 		dist =  msg_decoded->ttl - ttl;
