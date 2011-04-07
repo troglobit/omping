@@ -46,18 +46,18 @@ void	util_gen_id_add_sas(char *id, size_t len, size_t *pos, const struct sockadd
 double
 util_time_double_absdiff(struct timeval t1, struct timeval t2)
 {
-        double dt1, dt2, tmp;
+	double dt1, dt2, tmp;
 
-        dt1 = t1.tv_usec + t1.tv_sec * 1000000;
-        dt2 = t2.tv_usec + t2.tv_sec * 1000000;
+	dt1 = t1.tv_usec + t1.tv_sec * 1000000;
+	dt2 = t2.tv_usec + t2.tv_sec * 1000000;
 
-        if (dt2 > dt1) {
-                tmp = dt1;
-                dt1 = dt2;
-                dt2 = tmp;
-        }
+	if (dt2 > dt1) {
+		tmp = dt1;
+		dt1 = dt2;
+		dt2 = tmp;
+	}
 
-        return (dt1 - dt2) / 1000.0;
+	return (dt1 - dt2) / 1000.0;
 }
 
 /*

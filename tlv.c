@@ -518,7 +518,7 @@ tlv_pref_eq(const struct sockaddr_storage *sas, uint16_t iana_af, uint8_t prefix
 		break;
 	default:
 		DEBUG_PRINTF("Unknown ss family %d", sas->ss_family);
-                errx(1, "Unknown ss family %d", sas->ss_family);
+		errx(1, "Unknown ss family %d", sas->ss_family);
 	}
 
 	if (iana_af != sas_iana_af) {

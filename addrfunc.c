@@ -159,11 +159,11 @@ af_ai_list_free(struct ai_list *ai_list)
 	struct ai_item *ai_item;
 
 	while (!TAILQ_EMPTY(ai_list)) {
-             ai_item = TAILQ_FIRST(ai_list);
-             TAILQ_REMOVE(ai_list, ai_item, entries);
-             free(ai_item->host_name);
-             free(ai_item);
-     }
+		ai_item = TAILQ_FIRST(ai_list);
+		TAILQ_REMOVE(ai_list, ai_item, entries);
+		free(ai_item->host_name);
+		free(ai_item);
+	}
 }
 
 /* Return supported ip version. This function doesn't go deeply to structure. It can return 4 (ipv4
