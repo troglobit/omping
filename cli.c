@@ -147,7 +147,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 't':
 			num = strtol(optarg, &ep, 10);
-			if (num <= 0 || num > UINT8_MAX || *ep != '\0') {
+			if (num <= 0 || num > ((uint8_t)~0) || *ep != '\0') {
 				warnx("illegal number, -t argument -- %s", optarg);
 				goto error_usage_exit;
 			}
