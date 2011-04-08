@@ -563,7 +563,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	}
 
 	if (is_dup) {
-		if (rh_item->client_info.no_dups[cast_index] == ~((uint64_t)0)) {
+		if (rh_item->client_info.no_dups[cast_index] == ((uint64_t)~0)) {
 			DEBUG_PRINTF("Number of received duplicates for %s exhausted.",
 			    rh_item->addr->host_name);
 		} else {
@@ -872,7 +872,7 @@ omping_send_client_msgs(struct omping_instance *instance)
 			ci->seq_num++;
 			ci->no_sent++;
 
-			if (ci->no_sent == ~((uint64_t)0)) {
+			if (ci->no_sent == ((uint64_t)~0)) {
 				ci->state = RH_CS_STOP;
 				VERBOSE_PRINTF("Number of sent messages for %s exhausted. "
 				    "Moving to stop state.", remote_host->addr->host_name);
