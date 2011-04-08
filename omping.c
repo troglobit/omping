@@ -697,6 +697,8 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 {
 	struct rh_item *rh_item;
 	enum rh_client_state old_cstate;
+	const char *ci_ses_id;
+	const char *msg_ses_id;
 
 	rh_item = rh_list_find(&instance->remote_hosts, (const struct sockaddr *)from);
 	if (rh_item == NULL) {
@@ -755,6 +757,17 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		DEBUG_PRINTF("Message doesn't contain session id");
 
 		return (-5);
+	}
+
+	if (rh_item->client_info.ses_id_len == msg_decoded->ses_id_len) {
+		ci_ses_id = rh_item->client_info.ses_id;
+		msg_ses_id = msg_decoded->ses_id;
+
+		if (memcmp(ci_ses_id, msg_ses_id, msg_decoded->ses_id_len) == 0) {
+			DEBUG_PRINTF("Duplicate server response");
+
+			return (-5);
+		}
 	}
 
 	old_cstate = rh_item->client_info.state;
