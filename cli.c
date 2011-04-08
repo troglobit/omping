@@ -63,12 +63,15 @@ static void	usage();
  * cont_stat is flag for enable continuous statistic. timeout_time is number of miliseconds after
  * which client exits regardless to number of received/sent packets. wait_for_finish_time is number
  * of miliseconds to wait before exit to allow other nodes not to screw up final statistics.
+ * dup_buf_items is number of items which should be stored in duplicate packet detection buffer.
+ * Default is MIN_DUP_BUF_ITEMS for intervals > 1, or DUP_BUF_SECS value divided by ping interval
+ * in seconds or 0, which is used for disabling duplicate detection.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
-    int *cont_stat, int *timeout_time, int *wait_for_finish_time)
+    int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -92,13 +95,14 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*transport_method = SF_TM_ASM;
 	*timeout_time = 0;
 	*wait_for_finish_time = 0;
+	*dup_buf_items = MIN_DUP_BUF_ITEMS;
 	port_s = DEFAULT_PORT_S;
 	force = 0;
 	wait_for_finish_time_set = 0;
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CFqVvi:M:m:p:T:t:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CDFqVvi:M:m:p:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -108,6 +112,9 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'C':
 			(*cont_stat)++;
+			break;
+		case 'D':
+			*dup_buf_items = 0;
 			break;
 		case 'F':
 			force++;
@@ -212,6 +219,19 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	 */
 	if (!wait_for_finish_time_set) {
 		*wait_for_finish_time = *wait_time * DEFAULT_WFF_TIME_MUL;
+	}
+
+	if (*wait_time == 0) {
+		*dup_buf_items = 0;
+	} else {
+		/*
+		 * + 1 is for eliminate trucate errors
+		 */
+		*dup_buf_items = ((DUP_BUF_SECS * 1000) / *wait_time) + 1;
+
+		if (*dup_buf_items < MIN_DUP_BUF_ITEMS) {
+			*dup_buf_items = MIN_DUP_BUF_ITEMS;
+		}
 	}
 
 	TAILQ_INIT(ai_list);
@@ -631,7 +651,7 @@ static void
 usage()
 {
 
-	printf("usage: %s [-46CFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
+	printf("usage: %s [-46CDFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
 	    PROGRAM_NAME);
 	printf("              [-p port] [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n");
 }

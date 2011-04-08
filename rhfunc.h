@@ -56,14 +56,17 @@ struct rh_item_ci {
 	char		client_id[CLIENTID_LEN];
 	struct timeval	last_init_ts;
 	char		*ses_id;
+	uint32_t	*dup_buffer[2];
 	double		rtt_max[2];
 	double		rtt_min[2];
 	double		rtt_sum[2];
 	size_t		ses_id_len;
-	uint32_t	seq_num;
 	uint64_t	no_err_msgs;
+	uint64_t	no_dups[2];
 	uint64_t	no_received[2];
 	uint64_t	no_sent;
+	uint32_t	seq_num;
+	int		dup_buf_items;
 };
 
 /*
@@ -89,8 +92,12 @@ struct rh_item {
  */
 TAILQ_HEAD(rh_list, rh_item);
 
-extern struct rh_item	*rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr);
-extern void		 rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs);
+extern struct rh_item	*rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr,
+    int dup_buf_items);
+
+extern void		 rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs,
+    int dup_buf_items);
+
 extern struct rh_item	*rh_list_find(struct rh_list *rh_list, const struct sockaddr *sa);
 extern void		 rh_list_free(struct rh_list *rh_list);
 

@@ -42,6 +42,20 @@ extern "C" {
  */
 #define DEFAULT_WFF_TIME_MUL	3
 
+/*
+ * Minimum number of elements in duplicate buffer
+ */
+#define MIN_DUP_BUF_ITEMS	1024
+/*
+ * Default seconds which must be stored in duplicate buffer.
+ * This value is divided by ping interval in seconds. If value is smaller
+ * then MIN_DUP_BUF_ITEMS, then MIN_DUP_BUF_ITEMS is used.
+ */
+#define DUP_BUF_SECS		(2 * 60)
+
+/*
+ * Protocol version used in messages
+ */
 #define PROTOCOL_VERSION	2
 
 #define MAX_MSG_SIZE		65535

@@ -77,7 +77,7 @@ msg_answer_create(const char *orig_msg, size_t orig_msg_len, char *new_msg, size
 	return (pos);
 
 small_buf_err:
-        return (0);
+	return (0);
 }
 
 /*

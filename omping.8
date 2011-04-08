@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd April 05, 2011
+.Dd April 08, 2011
 .Dt OMPING 8
 .Os
 .
@@ -23,7 +23,7 @@
 .Nd test IP multicast
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46CFqVv
+.Op Fl 46CDFqVv
 .Op Fl i Ar interval
 .Op Fl M Ar transport_method
 .Op Fl m Ar mcast_addr
@@ -63,6 +63,8 @@ Force usage of IPv4.
 Force usage of IPv6.
 .It Fl C
 Display continuous statistics for every reply message.
+.It Fl D
+Disable packet duplicate detection. Option is default for interval 0.
 .It Fl F
 Allow entering of arguments which are not allowed or not recommended by the specification. This is
 typically the interval parameter. This option may be used multiple times.
@@ -186,8 +188,6 @@ utility was written by
 .An Jan Friesse Aq jfriesse@redhat.com .
 .Sh BUGS
 .Bl -dash
-.It
-Packet duplicate detection is not implemented.
 .It
 Actually computed RTT is not RTT taken from packet, but end-to-end delivery.
 .It

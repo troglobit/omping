@@ -56,6 +56,7 @@ struct omping_instance {
 	enum sf_transport_method transport_method;
 	char		*local_ifname;
 	int		cont_stat;
+	int		dup_buf_items;
 	int		hn_max_len;
 	int		ip_ver;
 	int		mcast_socket;
@@ -227,9 +228,9 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
 	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
 	    &instance->quiet, &instance->cont_stat, &instance->timeout_time,
-	    &instance->wait_for_finish_time);
+	    &instance->wait_for_finish_time, &instance->dup_buf_items);
 
-	rh_list_create(&instance->remote_hosts, &instance->remote_addrs);
+	rh_list_create(&instance->remote_hosts, &instance->remote_addrs, instance->dup_buf_items);
 
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
@@ -467,6 +468,25 @@ error_unknown_mcast:
 	return (0);
 }
 
+static int
+is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, int ucast)
+{
+	int cast_index;
+	int res;
+
+	cast_index = (ucast ? 0 : 1);
+
+	if (ci->dup_buffer[cast_index][seq % ci->dup_buf_items] == seq) {
+		res = 1;
+	} else {
+		ci->dup_buffer[cast_index][seq % ci->dup_buf_items] = seq;
+
+		res = 0;
+	}
+
+	return (res);
+}
+
 /*
  * Process answer message. Instance is omping instance, msg is received message with msg_len length,
  * msg_decoded is decoded message, from is address of sender. ttl is Time-To-Live of packet. If ttl
@@ -488,6 +508,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	int cast_index;
 	int dist_set;
 	int first_packet;
+	int is_dup;
 	int rtt_set;
 	int loss;
 	uint8_t dist;
@@ -535,41 +556,55 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 	avg_rtt = 0;
 	cast_index = (ucast ? 0 : 1);
+	is_dup = 0;
 
-	first_packet = (rh_item->client_info.no_received[cast_index] == 0);
+	if (instance->dup_buf_items > 0) {
+		is_dup = is_dup_packet(&rh_item->client_info, msg_decoded->seq_num, ucast);
+	}
 
-	received = ++rh_item->client_info.no_received[cast_index];
-	if (rtt_set) {
-		rh_item->client_info.rtt_sum[cast_index] += rtt;
-
-		if (instance->cont_stat) {
-			avg_rtt = rh_item->client_info.rtt_sum[cast_index] / received;
+	if (is_dup) {
+		if (rh_item->client_info.no_dups[cast_index] == ~((uint64_t)0)) {
+			DEBUG_PRINTF("Number of received duplicates for %s exhausted.",
+			    rh_item->addr->host_name);
+		} else {
+			rh_item->client_info.no_dups[cast_index]++;
 		}
 
-		if (first_packet) {
-			rh_item->client_info.rtt_max[cast_index] = rtt;
-			rh_item->client_info.rtt_min[cast_index] = rtt;
-		} else {
-			if (rtt > rh_item->client_info.rtt_max[cast_index]) {
-				rh_item->client_info.rtt_max[cast_index] = rtt;
-			}
+		received = rh_item->client_info.no_received[cast_index];
+	} else {
+		first_packet = (rh_item->client_info.no_received[cast_index] == 0);
 
-			if (rtt < rh_item->client_info.rtt_min[cast_index]) {
+		received = ++rh_item->client_info.no_received[cast_index];
+
+		if (rtt_set) {
+			rh_item->client_info.rtt_sum[cast_index] += rtt;
+
+			if (first_packet) {
+				rh_item->client_info.rtt_max[cast_index] = rtt;
 				rh_item->client_info.rtt_min[cast_index] = rtt;
+			} else {
+				if (rtt > rh_item->client_info.rtt_max[cast_index]) {
+					rh_item->client_info.rtt_max[cast_index] = rtt;
+				}
+
+				if (rtt < rh_item->client_info.rtt_min[cast_index]) {
+					rh_item->client_info.rtt_min[cast_index] = rtt;
+				}
 			}
 		}
 	}
 
 	if (instance->cont_stat) {
 		loss = get_packet_loss_percent(rh_item->client_info.no_sent, received);
+		avg_rtt = rh_item->client_info.rtt_sum[cast_index] / received;
 	} else {
 		loss = 0;
 	}
 
 	if (instance->quiet == 0) {
 		print_packet_stats(rh_item->addr->host_name, instance->hn_max_len,
-		    msg_decoded->seq_num, 0, msg_len, dist_set, dist, rtt_set, rtt, avg_rtt, loss,
-		    ucast, instance->cont_stat);
+		    msg_decoded->seq_num, is_dup, msg_len, dist_set, dist, rtt_set, rtt, avg_rtt,
+		    loss, ucast, instance->cont_stat);
 	}
 
 	return (0);
@@ -1035,7 +1070,13 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 			printf("%5scast, ", cast_str);
 
 			printf("xmt/rcv/%%loss = ");
-			printf("%"PRIu64"/%"PRIu64"/%d%%", ci->no_sent, received, loss);
+			printf("%"PRIu64"/%"PRIu64, ci->no_sent, received);
+
+			if (ci->no_dups[i] > 0) {
+				printf("+%"PRIu64, ci->no_dups[i]);
+			}
+
+			printf("/%d%%", loss);
 
 			printf(", min/avg/max = ");
 			printf("%.3f/%.3f/%.3f", ci->rtt_min[i], avg_rtt, ci->rtt_max[i]);

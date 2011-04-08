@@ -37,12 +37,15 @@
 
 /*
  * Add item to remote host list. Addr pointer is stored in rh_item. On fail, function returns NULL,
- * otherwise newly allocated rh_item is returned.
+ * otherwise newly allocated rh_item is returned. dup_buf_items is number of items to be stored in
+ * duplicate buffers.
  */
 struct rh_item *
-rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr)
+rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr, int dup_buf_items)
 {
 	struct rh_item *rh_item;
+	struct rh_item_ci *ci;
+	int i;
 
 	rh_item = (struct rh_item *)malloc(sizeof(struct rh_item));
 	if (rh_item == NULL) {
@@ -52,18 +55,40 @@ rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr)
 	memset(rh_item, 0, sizeof(struct rh_item));
 
 	rh_item->addr = addr;
+	ci = &rh_item->client_info;
+
+	if (dup_buf_items > 0) {
+		ci->dup_buf_items = dup_buf_items;
+
+		for (i = 0; i < 2; i++) {
+			ci->dup_buffer[i] = (uint32_t *)malloc(dup_buf_items * sizeof(uint32_t));
+
+			if (ci->dup_buffer[i] == NULL) {
+				goto malloc_error;
+			}
+
+			memset(ci->dup_buffer[i], 0, dup_buf_items * sizeof(uint32_t));
+		}
+	}
 
 	TAILQ_INSERT_TAIL(rh_list, rh_item, entries);
 
 	return (rh_item);
+
+malloc_error:
+	for (i = 0; i < 2; i++) {
+		free(rh_item->client_info.dup_buffer[i]);
+	}
+
+	return (NULL);
 }
 
 /*
  * Create list of rh_items. It's also possible to pass ai_list to include every address from list to
- * newly allocated rh_list.
+ * newly allocated rh_list. dup_buf_items is number of items to be stored in duplicate buffers.
  */
 void
-rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs)
+rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs, int dup_buf_items)
 {
 	struct ai_item *addr;
 	struct rh_item *rh_item;
@@ -72,7 +97,7 @@ rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs)
 
 	if (remote_addrs != NULL) {
 		TAILQ_FOREACH(addr, remote_addrs, entries) {
-			rh_item = rh_list_add_item(rh_list, addr);
+			rh_item = rh_list_add_item(rh_list, addr, dup_buf_items);
 			if (rh_item == NULL) {
 				errx(1, "Can't alloc memory");
 			}
@@ -104,13 +129,19 @@ void
 rh_list_free(struct rh_list *rh_list)
 {
 	struct rh_item *rh_item;
+	int i;
 
-        while (!TAILQ_EMPTY(rh_list)) {
-             rh_item = TAILQ_FIRST(rh_list);
-             TAILQ_REMOVE(rh_list, rh_item, entries);
-             free(rh_item->client_info.ses_id);
-             free(rh_item);
-     }
+	while (!TAILQ_EMPTY(rh_list)) {
+		rh_item = TAILQ_FIRST(rh_list);
+		TAILQ_REMOVE(rh_list, rh_item, entries);
+		free(rh_item->client_info.ses_id);
+
+		for (i = 0; i < 2; i++) {
+			free(rh_item->client_info.dup_buffer[i]);
+		}
+
+		free(rh_item);
+	}
 }
 
 /*
@@ -121,9 +152,9 @@ rh_list_gen_cid(struct rh_list *rh_list, const struct ai_item *local_addr)
 {
 	struct rh_item *rh_item;
 
-        TAILQ_FOREACH(rh_item, rh_list, entries) {
+	TAILQ_FOREACH(rh_item, rh_list, entries) {
 		util_gen_cid(rh_item->client_info.client_id, local_addr);
-        }
+	}
 }
 
 /*
