@@ -232,7 +232,7 @@ rs_sendto(int sock, const char *msg, size_t msg_size, const struct sockaddr_stor
 		return (-1);
 	}
 
-	if (sent != msg_size) {
+	if ((size_t)sent != msg_size) {
 		DEBUG2_PRINTF("sendto error - sent != msg_size");
 
 		return (-1);

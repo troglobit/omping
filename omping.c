@@ -186,7 +186,7 @@ get_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received) {
 		DEBUG_PRINTF("packet_received > packet_sent");
 		loss = 0;
 	} else {
-		loss = ((1.0 - (double)packet_received / (double)packet_sent) * 100.0);
+		loss = (int)((1.0 - (double)packet_received / (double)packet_sent) * 100.0);
 	}
 
 	return (loss);
@@ -394,7 +394,7 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	struct msg_decoded msg_decoded;
-	char *cast_str;
+	const char *cast_str;
 	struct rh_item *rh_item;
 	int res;
 
@@ -551,7 +551,8 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		rtt_set = 1;
 		rtt = util_time_double_absdiff(msg_decoded->client_tstamp, util_get_time());
 	} else {
-		rtt_set = rtt = 0;
+		rtt_set = 0;
+		rtt = 0;
 	}
 
 	avg_rtt = 0;
@@ -811,7 +812,7 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 
 	free(rh_item->client_info.ses_id);
 
-	rh_item->client_info.ses_id = malloc(rh_item->client_info.ses_id_len);
+	rh_item->client_info.ses_id = (char *)malloc(rh_item->client_info.ses_id_len);
 	if (rh_item->client_info.ses_id == NULL) {
 		errx(1, "Can't alloc memory");
 	}
@@ -1035,7 +1036,7 @@ print_client_state(const char *host_name, int host_name_len,
 static void
 print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 {
-	char *cast_str;
+	const char *cast_str;
 	struct rh_item *rh_item;
 	struct rh_item_ci *ci;
 	double avg_rtt;
@@ -1100,7 +1101,7 @@ print_packet_stats(const char *host_name, int host_name_len, uint32_t seq, int i
     size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt, int loss,
     int ucast, int cont_stat)
 {
-	char *cast_str;
+	const char *cast_str;
 
 	cast_str = (ucast ? "uni" : "multi");
 

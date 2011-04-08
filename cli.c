@@ -159,7 +159,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 				warnx("illegal number, -T argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*timeout_time = numd * 1000.0;
+			*timeout_time = (int)(numd * 1000.0);
 			break;
 		case 'i':
 			numd = strtod(optarg, &ep);
@@ -167,7 +167,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 				warnx("illegal number, -i argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*wait_time = numd * 1000.0;
+			*wait_time = (int)(numd * 1000.0);
 			break;
 		case 'w':
 			numd = strtod(optarg, &ep);
@@ -176,7 +176,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 				goto error_usage_exit;
 			}
 			wait_for_finish_time_set = 1;
-			*wait_for_finish_time = numd * 1000.0;
+			*wait_for_finish_time = (int)(numd * 1000.0);
 			break;
 		case '?':
 			goto error_usage_exit;

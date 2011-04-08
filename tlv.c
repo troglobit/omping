@@ -129,7 +129,7 @@ tlv_add_opt_request(char *msg, size_t msg_len, size_t *pos, uint16_t *opts, size
 {
 	char *value;
 	size_t val_len;
-	int i;
+	unsigned int i;
 	uint16_t opt;
 
 	if (opts_len == 0)
@@ -137,7 +137,7 @@ tlv_add_opt_request(char *msg, size_t msg_len, size_t *pos, uint16_t *opts, size
 
 	val_len = opts_len * sizeof(uint16_t);
 
-	value = alloca(val_len);
+	value = (char *)alloca(val_len);
 
 	for (i = 0; i < opts_len; i++) {
 		opt = htons(opts[i]);
@@ -186,7 +186,7 @@ tlv_add_sas(char *msg, size_t msg_len, size_t *pos, enum tlv_opt_type opt,
 	if (store_prefix_len)
 		opt_len += sizeof(pref_len_val);
 
-	value = alloca(opt_len);
+	value = (char *)alloca(opt_len);
 
 	af = htons(af);
 

@@ -29,6 +29,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum ms_answer_type {
 	MS_ANSWER_UCAST = 1,
 	MS_ANSWER_MCAST = 2,

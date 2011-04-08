@@ -96,7 +96,7 @@ msg_decode(const char *msg, size_t msg_len, struct msg_decoded *decoded)
 
 	memset(decoded, 0, sizeof(struct msg_decoded));
 
-	decoded->msg_type = (unsigned char)msg[0];
+	decoded->msg_type = (enum msg_type)msg[0];
 
 	DEBUG2_PRINTF("Message type %c (0x%X)", decoded->msg_type, decoded->msg_type);
 
