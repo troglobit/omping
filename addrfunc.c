@@ -260,8 +260,9 @@ af_find_local_ai(const struct ai_list *ai_list, int *ip_ver, struct ifaddrs **if
 	TAILQ_FOREACH(aip, ai_list, entries) {
 		for (ai_i = aip->ai; ai_i != NULL; ai_i = ai_i->ai_next) {
 			for (ifa_i = ifa; ifa_i != NULL; ifa_i = ifa_i->ifa_next) {
-				if (ifa_i->ifa_addr->sa_family != AF_INET &&
-				    ifa_i->ifa_addr->sa_family != AF_INET6) {
+				if (ifa_i->ifa_addr == NULL ||
+				    (ifa_i->ifa_addr->sa_family != AF_INET &&
+				    ifa_i->ifa_addr->sa_family != AF_INET6)) {
 					continue ;
 				}
 
