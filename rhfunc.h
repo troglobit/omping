@@ -65,6 +65,7 @@ struct rh_item_ci {
 	uint64_t	no_dups[2];
 	uint64_t	no_received[2];
 	uint64_t	no_sent;
+	uint32_t	first_mcast_seq;
 	uint32_t	seq_num;
 	int		dup_buf_items;
 };

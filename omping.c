@@ -505,6 +505,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	double rtt;
 	double avg_rtt;
 	uint64_t received;
+	uint64_t sent;
 	int cast_index;
 	int dist_set;
 	int first_packet;
@@ -577,6 +578,10 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 		received = ++rh_item->client_info.no_received[cast_index];
 
+		if (!ucast && first_packet) {
+			rh_item->client_info.first_mcast_seq = msg_decoded->seq_num;
+		}
+
 		if (rtt_set) {
 			rh_item->client_info.rtt_sum[cast_index] += rtt;
 
@@ -596,7 +601,12 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	}
 
 	if (instance->cont_stat) {
-		loss = get_packet_loss_percent(rh_item->client_info.no_sent, received);
+		sent = rh_item->client_info.no_sent;
+
+		if (!ucast && rh_item->client_info.first_mcast_seq > 0) {
+			sent = sent - rh_item->client_info.first_mcast_seq + 1;
+		}
+		loss = get_packet_loss_percent(sent, received);
 		avg_rtt = rh_item->client_info.rtt_sum[cast_index] / received;
 	} else {
 		loss = 0;
@@ -1049,9 +1059,13 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 	double avg_rtt;
 	int i;
 	int loss;
+	int loss_adj;
 	uint64_t received;
+	uint64_t sent;
 
 	printf("\n");
+
+	loss_adj = 0;
 
 	TAILQ_FOREACH(rh_item, remote_hosts, entries) {
 		for (i = 0; i < 2; i++) {
@@ -1059,6 +1073,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 			ci = &rh_item->client_info;
 
 			received = ci->no_received[i];
+			sent = ci->no_sent;
 
 			printf("%-*s : ", host_name_len, rh_item->addr->host_name);
 
@@ -1067,7 +1082,12 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 				break;
 			}
 
-			loss = get_packet_loss_percent(rh_item->client_info.no_sent, received);
+			if (i != 0) {
+				loss_adj = get_packet_loss_percent(sent - ci->first_mcast_seq + 1,
+				    received);
+			}
+
+			loss = get_packet_loss_percent(sent, received);
 
 			if (received == 0) {
 				avg_rtt = 0;
@@ -1078,13 +1098,16 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 			printf("%5scast, ", cast_str);
 
 			printf("xmt/rcv/%%loss = ");
-			printf("%"PRIu64"/%"PRIu64, ci->no_sent, received);
+			printf("%"PRIu64"/%"PRIu64, sent, received);
 
 			if (ci->no_dups[i] > 0) {
 				printf("+%"PRIu64, ci->no_dups[i]);
 			}
 
 			printf("/%d%%", loss);
+			if (i != 0 && ci->first_mcast_seq > 1) {
+				printf(" (seq>=%"PRIu32" %d%%)", ci->first_mcast_seq, loss_adj);
+			}
 
 			printf(", min/avg/max = ");
 			printf("%.3f/%.3f/%.3f", ci->rtt_min[i], avg_rtt, ci->rtt_max[i]);
