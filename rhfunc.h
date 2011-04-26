@@ -75,6 +75,7 @@ struct rh_item_ci {
 struct rh_item_si {
 	enum		rh_server_state state;
 	char		ses_id[SESSIONID_LEN];
+	struct timeval	last_init_ts;
 };
 
 /*

@@ -667,8 +667,15 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
 		    from, 0, 1, NULL, 0));
 	}
 
+	if (util_time_absdiff(rh_item->server_info.last_init_ts, util_get_time()) <
+	    DEFAULT_WAIT_TIME) {
+		DEBUG_PRINTF("Time diff between two init messages too short. Ignoring message.");
+		return (0);
+	}
+
 	util_gen_sid(rh_item->server_info.ses_id);
 	rh_item->server_info.state = RH_SS_ANSWER;
+	rh_item->server_info.last_init_ts = util_get_time();
 
 	return (ms_response(instance->ucast_socket, &instance->mcast_addr.sas, msg_decoded, from,
 	    1, 0, rh_item->server_info.ses_id, SESSIONID_LEN));
