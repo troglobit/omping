@@ -198,16 +198,16 @@ get_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received) {
 static int
 omping_check_msg_common(const struct msg_decoded *msg_decoded)
 {
-	if (msg_decoded->version != 2) {
-		DEBUG_PRINTF("Message version %d is not supported", msg_decoded->version);
-
-		return (-1);
-	}
-
 	if (msg_decoded->msg_type != MSG_TYPE_INIT && msg_decoded->msg_type != MSG_TYPE_RESPONSE &&
 	    msg_decoded->msg_type != MSG_TYPE_QUERY && msg_decoded->msg_type != MSG_TYPE_ANSWER) {
 		DEBUG_PRINTF("Unknown type %c (0x%X) of message", msg_decoded->msg_type,
 		    msg_decoded->msg_type);
+
+		return (-1);
+	}
+
+	if (msg_decoded->version != 2) {
+		DEBUG_PRINTF("Message version %d is not supported", msg_decoded->version);
 
 		return (-1);
 	}
