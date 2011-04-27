@@ -223,8 +223,8 @@ util_time_double_absdiff_us(struct timeval t1, struct timeval t2)
 {
 	double dt1, dt2, tmp;
 
-	dt1 = t1.tv_usec + t1.tv_sec * 1000000;
-	dt2 = t2.tv_usec + t2.tv_sec * 1000000;
+	dt1 = t1.tv_usec + t1.tv_sec * UTIL_NSINMS;
+	dt2 = t2.tv_usec + t2.tv_sec * UTIL_NSINMS;
 
 	if (dt2 > dt1) {
 		tmp = dt1;

@@ -31,10 +31,19 @@ extern "C" {
  * Definitions
  */
 
-/* (4 bytes of pid) + (16 bytes of IPV6 addr) + 4 bytes of random data */
+/*
+ * Number of nanoseconds in one milisecond
+ */
+#define UTIL_NSINMS		1000000.0
+
+/*
+ * (4 bytes of pid) + (16 bytes of IPV6 addr) + 4 bytes of random data
+ */
 enum { CLIENTID_LEN = (4 + 16 + 4) };
 
-/* (4 bytes of pid) + 12 bytes of random data */
+/*
+ * (4 bytes of pid) + 12 bytes of random data
+ */
 enum { SESSIONID_LEN = (4 + 12) };
 
 /*
