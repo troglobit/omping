@@ -57,9 +57,10 @@ struct rh_item_ci {
 	struct timeval	last_init_ts;
 	char		*ses_id;
 	uint32_t	*dup_buffer[2];
+	double		avg_rtt[2];
+	double		m2_rtt[2];
 	double		rtt_max[2];
 	double		rtt_min[2];
-	double		rtt_sum[2];
 	size_t		ses_id_len;
 	uint64_t	no_err_msgs;
 	uint64_t	no_dups[2];

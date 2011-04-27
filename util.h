@@ -40,12 +40,17 @@ enum { SESSIONID_LEN = (4 + 12) };
 /*
  * Functions
  */
-extern double		util_time_double_absdiff(struct timeval t1, struct timeval t2);
+extern double		util_fabs(double n);
 extern void		util_gen_cid(char *client_id, const struct ai_item *local_addr);
 extern void		util_gen_sid(char *session_id);
 extern struct timeval	util_get_time(void);
 extern void		util_random_init(const struct sockaddr_storage *local_addr);
 extern uint64_t		util_time_absdiff(struct timeval t1, struct timeval t2);
+extern double		util_time_double_absdiff(struct timeval t1, struct timeval t2);
+extern double		util_ov_std_dev(double m2, uint64_t n);
+extern void		util_ov_update(double *mean, double *m2, double x, uint64_t n);
+extern double		util_ov_variance(double m2, uint64_t n);
+extern uint32_t		util_u32sqrt(uint32_t n);
 
 #ifdef __cplusplus
 }

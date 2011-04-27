@@ -583,7 +583,8 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		}
 
 		if (rtt_set) {
-			rh_item->client_info.rtt_sum[cast_index] += rtt;
+			util_ov_update(&rh_item->client_info.avg_rtt[cast_index],
+			    &rh_item->client_info.m2_rtt[cast_index], rtt, received);
 
 			if (first_packet) {
 				rh_item->client_info.rtt_max[cast_index] = rtt;
@@ -607,7 +608,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 			sent = sent - rh_item->client_info.first_mcast_seq + 1;
 		}
 		loss = get_packet_loss_percent(sent, received);
-		avg_rtt = rh_item->client_info.rtt_sum[cast_index] / received;
+		avg_rtt = rh_item->client_info.avg_rtt[cast_index];
 	} else {
 		loss = 0;
 	}
@@ -1092,7 +1093,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 			if (received == 0) {
 				avg_rtt = 0;
 			} else {
-				avg_rtt = ci->rtt_sum[i] / received;
+				avg_rtt = ci->avg_rtt[i];
 			}
 
 			printf("%5scast, ", cast_str);
@@ -1109,8 +1110,9 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 				printf(" (seq>=%"PRIu32" %d%%)", ci->first_mcast_seq, loss_adj);
 			}
 
-			printf(", min/avg/max = ");
-			printf("%.3f/%.3f/%.3f", ci->rtt_min[i], avg_rtt, ci->rtt_max[i]);
+			printf(", min/avg/max/std-dev = ");
+			printf("%.3f/%.3f/%.3f/%.3f", ci->rtt_min[i], avg_rtt, ci->rtt_max[i],
+			    util_ov_std_dev(ci->m2_rtt[i], ci->no_received[i]));
 			printf("\n");
 		}
 	}

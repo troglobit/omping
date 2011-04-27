@@ -27,6 +27,7 @@
 
 #include <err.h>
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -41,23 +42,11 @@ void	util_gen_id(char *id, size_t len, const struct ai_item *ai_item,
 void	util_gen_id_add_sas(char *id, size_t len, size_t *pos, const struct sockaddr_storage *sas);
 
 /*
- * Return abs value of (t2 - t1) in ms double precission.
+ * Returns absolute value of n
  */
 double
-util_time_double_absdiff(struct timeval t1, struct timeval t2)
-{
-	double dt1, dt2, tmp;
-
-	dt1 = t1.tv_usec + t1.tv_sec * 1000000;
-	dt2 = t2.tv_usec + t2.tv_sec * 1000000;
-
-	if (dt2 > dt1) {
-		tmp = dt1;
-		dt1 = dt2;
-		dt2 = tmp;
-	}
-
-	return (dt1 - dt2) / 1000.0;
+util_fabs(double n) {
+	return (n < 0 ? -n : n);
 }
 
 /*
@@ -207,4 +196,76 @@ util_time_absdiff(struct timeval t1, struct timeval t2)
 	}
 
 	return (u64t1 - u64t2);
+}
+
+/*
+ * Return abs value of (t2 - t1) in ms double precission.
+ */
+double
+util_time_double_absdiff(struct timeval t1, struct timeval t2)
+{
+	double dt1, dt2, tmp;
+
+	dt1 = t1.tv_usec + t1.tv_sec * 1000000;
+	dt2 = t2.tv_usec + t2.tv_sec * 1000000;
+
+	if (dt2 > dt1) {
+		tmp = dt1;
+		dt1 = dt2;
+		dt2 = tmp;
+	}
+
+	return (dt1 - dt2) / 1000.0;
+}
+
+/*
+ * Return standard deviation based on m2 value and number of items n. Value is rounded to 0.001.
+ */
+double
+util_ov_std_dev(double m2, uint64_t n)
+{
+	return (sqrt(util_ov_variance(m2, n)));
+}
+/*
+ * On-line algorithm for compute variance.
+ * Based on Donald E. Knuth (1998). The Art of Computer Programming, volume 2: p. 232.
+ * function updats mean and m2. x is new value and n is absolute number of all items.
+ */
+void
+util_ov_update(double *mean, double *m2, double x, uint64_t n)
+{
+	double delta;
+
+	delta = x - *mean;
+        *mean = *mean + delta / n;
+        *m2 = *m2 + delta * (x - *mean);
+}
+
+/*
+ * Return variance based on m2 value and number of items n.
+ */
+double
+util_ov_variance(double m2, uint64_t n)
+{
+    return ((n > 1) ? (m2 / (n - 1)) : 0.0);
+}
+
+/*
+ * Return sqrt of 32bit unsigned int n
+ */
+uint32_t
+util_u32sqrt(uint32_t n) {
+	double x, x2;
+
+	if (n == 0) {
+		return (0);
+	}
+
+	x = n;
+
+	while (util_fabs((x2 = (x + n / x) / 2) - x) >= 0.5) {
+		x = x2;
+	}
+
+	return ((uint32_t)x2);
 }
