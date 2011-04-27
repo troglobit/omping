@@ -578,7 +578,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 		received = ++rh_item->client_info.no_received[cast_index];
 
-		if (!ucast && first_packet) {
+		if (!ucast && first_packet && !rh_item->client_info.seq_num_overflow) {
 			rh_item->client_info.first_mcast_seq = msg_decoded->seq_num;
 		}
 
@@ -890,6 +890,11 @@ omping_send_client_msgs(struct omping_instance *instance)
 		case RH_CS_QUERY:
 			ci->seq_num++;
 			ci->no_sent++;
+
+			if (ci->seq_num == 0) {
+				ci->seq_num_overflow = 1;
+				ci->seq_num++;
+			}
 
 			if (ci->no_sent == ((uint64_t)~0)) {
 				ci->state = RH_CS_STOP;

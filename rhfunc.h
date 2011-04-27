@@ -69,6 +69,7 @@ struct rh_item_ci {
 	uint32_t	first_mcast_seq;
 	uint32_t	seq_num;
 	int		dup_buf_items;
+	int		seq_num_overflow;
 };
 
 /*
