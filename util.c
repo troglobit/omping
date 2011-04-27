@@ -204,6 +204,24 @@ util_time_absdiff(struct timeval t1, struct timeval t2)
 double
 util_time_double_absdiff(struct timeval t1, struct timeval t2)
 {
+	return (util_time_double_absdiff_us(t1, t2) / 1000.0);
+}
+
+/*
+ * Return abs value of (t2 - t1) in ns (nano seconds) double precission.
+ */
+double
+util_time_double_absdiff_ns(struct timeval t1, struct timeval t2)
+{
+	return (util_time_double_absdiff_us(t1, t2) * 1000.0);
+}
+
+/*
+ * Return abs value of (t2 - t1) in us (micro seconds) double precission.
+ */
+double
+util_time_double_absdiff_us(struct timeval t1, struct timeval t2)
+{
 	double dt1, dt2, tmp;
 
 	dt1 = t1.tv_usec + t1.tv_sec * 1000000;
@@ -215,7 +233,7 @@ util_time_double_absdiff(struct timeval t1, struct timeval t2)
 		dt2 = tmp;
 	}
 
-	return (dt1 - dt2) / 1000.0;
+	return (dt1 - dt2);
 }
 
 /*

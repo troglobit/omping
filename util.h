@@ -47,6 +47,8 @@ extern struct timeval	util_get_time(void);
 extern void		util_random_init(const struct sockaddr_storage *local_addr);
 extern uint64_t		util_time_absdiff(struct timeval t1, struct timeval t2);
 extern double		util_time_double_absdiff(struct timeval t1, struct timeval t2);
+extern double		util_time_double_absdiff_ns(struct timeval t1, struct timeval t2);
+extern double		util_time_double_absdiff_us(struct timeval t1, struct timeval t2);
 extern double		util_ov_std_dev(double m2, uint64_t n);
 extern void		util_ov_update(double *mean, double *m2, double x, uint64_t n);
 extern double		util_ov_variance(double m2, uint64_t n);
