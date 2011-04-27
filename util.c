@@ -251,10 +251,10 @@ util_ov_variance(double m2, uint64_t n)
 }
 
 /*
- * Return sqrt of 32bit unsigned int n
+ * Return sqrt of 64bit unsigned int n
  */
 uint32_t
-util_u32sqrt(uint32_t n) {
+util_u64sqrt(uint64_t n) {
 	double x, x2;
 
 	if (n == 0) {
