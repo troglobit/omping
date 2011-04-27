@@ -27,7 +27,6 @@
 
 #include <err.h>
 #include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -242,8 +241,9 @@ util_time_double_absdiff_us(struct timeval t1, struct timeval t2)
 double
 util_ov_std_dev(double m2, uint64_t n)
 {
-	return (sqrt(util_ov_variance(m2, n)));
+	return (util_u64sqrt((uint64_t)util_ov_variance(m2, n)));
 }
+
 /*
  * On-line algorithm for compute variance.
  * Based on Donald E. Knuth (1998). The Art of Computer Programming, volume 2: p. 232.

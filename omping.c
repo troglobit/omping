@@ -502,8 +502,10 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
     int ucast)
 {
 	struct rh_item *rh_item;
-	double rtt;
 	double avg_rtt;
+	double avg_rtt_tmp;
+	double m2_tmp;
+	double rtt;
 	uint64_t received;
 	uint64_t sent;
 	int cast_index;
@@ -550,7 +552,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 	if (msg_decoded->client_tstamp_isset) {
 		rtt_set = 1;
-		rtt = util_time_double_absdiff(msg_decoded->client_tstamp, util_get_time());
+		rtt = util_time_double_absdiff_ns(msg_decoded->client_tstamp, util_get_time());
 	} else {
 		rtt_set = 0;
 		rtt = 0;
@@ -583,19 +585,24 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		}
 
 		if (rtt_set) {
-			util_ov_update(&rh_item->client_info.avg_rtt[cast_index],
-			    &rh_item->client_info.m2_rtt[cast_index], rtt, received);
+			avg_rtt_tmp = rh_item->client_info.avg_rtt[cast_index];
+			m2_tmp = rh_item->client_info.m2_rtt[cast_index];
+
+			util_ov_update(&avg_rtt_tmp, &m2_tmp, rtt, received);
+
+			rh_item->client_info.avg_rtt[cast_index] = (uint64_t)avg_rtt_tmp;
+			rh_item->client_info.m2_rtt[cast_index] = (uint64_t)m2_tmp;
 
 			if (first_packet) {
-				rh_item->client_info.rtt_max[cast_index] = rtt;
-				rh_item->client_info.rtt_min[cast_index] = rtt;
+				rh_item->client_info.rtt_max[cast_index] = (uint64_t)rtt;
+				rh_item->client_info.rtt_min[cast_index] = (uint64_t)rtt;
 			} else {
 				if (rtt > rh_item->client_info.rtt_max[cast_index]) {
-					rh_item->client_info.rtt_max[cast_index] = rtt;
+					rh_item->client_info.rtt_max[cast_index] = (uint64_t)rtt;
 				}
 
 				if (rtt < rh_item->client_info.rtt_min[cast_index]) {
-					rh_item->client_info.rtt_min[cast_index] = rtt;
+					rh_item->client_info.rtt_min[cast_index] = (uint64_t)rtt;
 				}
 			}
 		}
@@ -608,15 +615,15 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 			sent = sent - rh_item->client_info.first_mcast_seq + 1;
 		}
 		loss = get_packet_loss_percent(sent, received);
-		avg_rtt = rh_item->client_info.avg_rtt[cast_index];
+		avg_rtt = rh_item->client_info.avg_rtt[cast_index] / 1000000.0;
 	} else {
 		loss = 0;
 	}
 
 	if (instance->quiet == 0) {
 		print_packet_stats(rh_item->addr->host_name, instance->hn_max_len,
-		    msg_decoded->seq_num, is_dup, msg_len, dist_set, dist, rtt_set, rtt, avg_rtt,
-		    loss, ucast, instance->cont_stat);
+		    msg_decoded->seq_num, is_dup, msg_len, dist_set, dist, rtt_set, rtt / 1000000.0,
+		    avg_rtt, loss, ucast, instance->cont_stat);
 	}
 
 	return (0);
@@ -1098,7 +1105,7 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 			if (received == 0) {
 				avg_rtt = 0;
 			} else {
-				avg_rtt = ci->avg_rtt[i];
+				avg_rtt = ci->avg_rtt[i] / 1000000.0;
 			}
 
 			printf("%5scast, ", cast_str);
@@ -1116,8 +1123,9 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 			}
 
 			printf(", min/avg/max/std-dev = ");
-			printf("%.3f/%.3f/%.3f/%.3f", ci->rtt_min[i], avg_rtt, ci->rtt_max[i],
-			    util_ov_std_dev(ci->m2_rtt[i], ci->no_received[i]));
+			printf("%.3f/%.3f/%.3f/%.3f", ci->rtt_min[i] / 1000000.0, avg_rtt,
+			    ci->rtt_max[i] / 1000000.0,
+			    util_ov_std_dev(ci->m2_rtt[i], ci->no_received[i]) / 1000000.0);
 			printf("\n");
 		}
 	}
