@@ -61,6 +61,7 @@ extern double		util_time_double_absdiff_us(struct timeval t1, struct timeval t2)
 extern double		util_ov_std_dev(double m2, uint64_t n);
 extern void		util_ov_update(double *mean, double *m2, double x, uint64_t n);
 extern double		util_ov_variance(double m2, uint64_t n);
+extern uint64_t		util_tv_to_ms(struct timeval t1);
 extern uint32_t		util_u64sqrt(uint64_t n);
 
 #ifdef __cplusplus

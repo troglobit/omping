@@ -269,6 +269,19 @@ util_ov_variance(double m2, uint64_t n)
 }
 
 /*
+ * Return number of miliseconds from timeval structure
+ */
+uint64_t
+util_tv_to_ms(struct timeval t1)
+{
+        uint64_t u64;
+
+        u64 = t1.tv_usec / 1000 + t1.tv_sec * 1000;
+
+        return (u64);
+}
+
+/*
  * Return sqrt of 64bit unsigned int n
  */
 uint32_t
