@@ -503,8 +503,6 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 {
 	struct rh_item *rh_item;
 	double avg_rtt;
-	double avg_rtt_tmp;
-	double m2_tmp;
 	double rtt;
 	uint64_t received;
 	uint64_t sent;
@@ -585,24 +583,19 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 		}
 
 		if (rtt_set) {
-			avg_rtt_tmp = rh_item->client_info.avg_rtt[cast_index];
-			m2_tmp = rh_item->client_info.m2_rtt[cast_index];
-
-			util_ov_update(&avg_rtt_tmp, &m2_tmp, rtt, received);
-
-			rh_item->client_info.avg_rtt[cast_index] = (uint64_t)avg_rtt_tmp;
-			rh_item->client_info.m2_rtt[cast_index] = (uint64_t)m2_tmp;
+			util_ov_update(&rh_item->client_info.avg_rtt[cast_index],
+			    &rh_item->client_info.m2_rtt[cast_index], rtt, received);
 
 			if (first_packet) {
-				rh_item->client_info.rtt_max[cast_index] = (uint64_t)rtt;
-				rh_item->client_info.rtt_min[cast_index] = (uint64_t)rtt;
+				rh_item->client_info.rtt_max[cast_index] = rtt;
+				rh_item->client_info.rtt_min[cast_index] = rtt;
 			} else {
 				if (rtt > rh_item->client_info.rtt_max[cast_index]) {
-					rh_item->client_info.rtt_max[cast_index] = (uint64_t)rtt;
+					rh_item->client_info.rtt_max[cast_index] = rtt;
 				}
 
 				if (rtt < rh_item->client_info.rtt_min[cast_index]) {
-					rh_item->client_info.rtt_min[cast_index] = (uint64_t)rtt;
+					rh_item->client_info.rtt_min[cast_index] = rtt;
 				}
 			}
 		}

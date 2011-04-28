@@ -58,14 +58,14 @@ struct rh_item_ci {
 	char		*ses_id;
 	uint32_t	*dup_buffer[2];
 	size_t		ses_id_len;
-	uint64_t	avg_rtt[2];
-	uint64_t	m2_rtt[2];
+	double		avg_rtt[2];
+	double		m2_rtt[2];
+	double		rtt_max[2];
+	double		rtt_min[2];
 	uint64_t	no_err_msgs;
 	uint64_t	no_dups[2];
 	uint64_t	no_received[2];
 	uint64_t	no_sent;
-	uint64_t	rtt_max[2];
-	uint64_t	rtt_min[2];
 	uint32_t	first_mcast_seq;
 	uint32_t	seq_num;
 	int		dup_buf_items;
