@@ -24,14 +24,18 @@ VERSION_SH = `grep PROGRAM_VERSION omping.h | head -n 1 | sed 's/^.*\"\(.*\)\"/\
 
 all: $(PROGRAM_NAME)
 
-$(PROGRAM_NAME): addrfunc.o cli.o logging.o msg.o msgsend.o omping.o rhfunc.o rsfunc.o sockfunc.o tlv.o util.o
-	$(CC) $(CFLAGS) $(LDFLAGS) addrfunc.o cli.o logging.o msg.o msgsend.o omping.o rhfunc.o \
-	    rsfunc.o sockfunc.o tlv.o util.o -o $@
+$(PROGRAM_NAME): addrfunc.o cli.o gcra.o logging.o msg.o msgsend.o omping.o rhfunc.o rsfunc.o \
+    sockfunc.o tlv.o util.o
+	$(CC) $(CFLAGS) $(LDFLAGS) addrfunc.o cli.o gcra.o logging.o msg.o msgsend.o omping.o \
+	    rhfunc.o rsfunc.o sockfunc.o tlv.o util.o -o $@
 
 addrfunc.o: addrfunc.c addrfunc.h logging.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 cli.o: cli.c cli.h addrfunc.h omping.h logging.h sockfunc.h
+	$(CC) -c $(CFLAGS) $< -o $@
+
+gcra.o: gcra.c gcra.h util.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 logging.o: logging.c logging.h
