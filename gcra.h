@@ -21,19 +21,25 @@
 #ifndef _GCRA_H_
 #define _GCRA_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Structures definition
  */
 struct gcra_item {
 	uint64_t tat;
-	int interval;
-	int tau;
+	unsigned int interval;
+	unsigned int tau;
 };
 
 /*
  * Prototypes
  */
-extern void		gcra_init(struct gcra_item *item, int interval, int burst);
+extern void		gcra_init(struct gcra_item *item, unsigned int interval,
+    unsigned int burst);
+
 extern int		gcra_rl(struct gcra_item *item, struct timeval tv);
 
 #ifdef __cplusplus

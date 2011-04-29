@@ -28,11 +28,11 @@
 #include "util.h"
 
 /*
- * item is gcra_item to be initialized. Interval is interval in ms in which packet will arrive (max),
- * and burst is number of packets which may arrive sooner.
+ * item is gcra_item to be initialized. Interval is interval in ms in which packet
+ * will arrive (max), and burst is number of packets which may arrive sooner.
  */
 void
-gcra_init(struct gcra_item *item, int interval, int burst) {
+gcra_init(struct gcra_item *item, unsigned int interval, unsigned int burst) {
 
 	memset(item, 0, sizeof(*item));
 
