@@ -18,12 +18,12 @@
  * Author: Jan Friesse <jfriesse@redhat.com>
  */
 
+#define __STDC_LIMIT_MACROS
+
 #include <sys/types.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-#define __STDC_LIMIT_MACROS
 
 #include <err.h>
 #include <stdint.h>
@@ -155,7 +155,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'T':
 			numd = strtod(optarg, &ep);
-			if (numd < 0 || *ep != '\0') {
+			if (numd < 0 || *ep != '\0' || numd * 1000 > INT32_MAX) {
 				warnx("illegal number, -T argument -- %s", optarg);
 				goto error_usage_exit;
 			}
@@ -163,7 +163,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'i':
 			numd = strtod(optarg, &ep);
-			if (numd < 0 || *ep != '\0') {
+			if (numd < 0 || *ep != '\0' || numd * 1000 > INT32_MAX) {
 				warnx("illegal number, -i argument -- %s", optarg);
 				goto error_usage_exit;
 			}
@@ -171,7 +171,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'w':
 			numd = strtod(optarg, &ep);
-			if ((numd < 0 && numd != -1) || *ep != '\0') {
+			if ((numd < 0 && numd != -1) || *ep != '\0' || numd * 1000 > INT32_MAX) {
 				warnx("illegal number, -w argument -- %s", optarg);
 				goto error_usage_exit;
 			}
