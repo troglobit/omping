@@ -34,14 +34,16 @@
 #include <stdarg.h>
 
 #include "rhfunc.h"
+#include "omping.h"
 
 /*
  * Add item to remote host list. Addr pointer is stored in rh_item. On fail, function returns NULL,
  * otherwise newly allocated rh_item is returned. dup_buf_items is number of items to be stored in
- * duplicate buffers.
+ * duplicate buffers. rate_limit_time is maximum time between two received packets.
  */
 struct rh_item *
-rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr, int dup_buf_items)
+rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr, int dup_buf_items,
+    int rate_limit_time)
 {
 	struct rh_item *rh_item;
 	struct rh_item_ci *ci;
@@ -71,6 +73,10 @@ rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr, int dup_buf_item
 		}
 	}
 
+	if (rate_limit_time > 0) {
+		gcra_init(&rh_item->server_info.gcra, rate_limit_time, GCRA_BURST);
+	}
+
 	TAILQ_INSERT_TAIL(rh_list, rh_item, entries);
 
 	return (rh_item);
@@ -86,9 +92,11 @@ malloc_error:
 /*
  * Create list of rh_items. It's also possible to pass ai_list to include every address from list to
  * newly allocated rh_list. dup_buf_items is number of items to be stored in duplicate buffers.
+ * rate_limit_time is maximum time between two received packets.
  */
 void
-rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs, int dup_buf_items)
+rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs, int dup_buf_items,
+    int rate_limit_time)
 {
 	struct ai_item *addr;
 	struct rh_item *rh_item;
@@ -97,7 +105,7 @@ rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs, int dup_bu
 
 	if (remote_addrs != NULL) {
 		TAILQ_FOREACH(addr, remote_addrs, entries) {
-			rh_item = rh_list_add_item(rh_list, addr, dup_buf_items);
+			rh_item = rh_list_add_item(rh_list, addr, dup_buf_items, rate_limit_time);
 			if (rh_item == NULL) {
 				errx(1, "Can't alloc memory");
 			}

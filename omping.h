@@ -54,6 +54,11 @@ extern "C" {
 #define DUP_BUF_SECS		(2 * 60)
 
 /*
+ * Default burst value for rate limit GCRA
+ */
+#define GCRA_BURST		5
+
+/*
  * Protocol version used in messages
  */
 #define PROTOCOL_VERSION	2

@@ -61,6 +61,7 @@ struct omping_instance {
 	int		ip_ver;
 	int		mcast_socket;
 	int		quiet;
+	int		rate_limit_time;
 	int		single_addr;
 	int		timeout_time;
 	int		ucast_socket;
@@ -228,9 +229,10 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
 	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
 	    &instance->quiet, &instance->cont_stat, &instance->timeout_time,
-	    &instance->wait_for_finish_time, &instance->dup_buf_items);
+	    &instance->wait_for_finish_time, &instance->dup_buf_items, &instance->rate_limit_time);
 
-	rh_list_create(&instance->remote_hosts, &instance->remote_addrs, instance->dup_buf_items);
+	rh_list_create(&instance->remote_hosts, &instance->remote_addrs, instance->dup_buf_items,
+	    instance->rate_limit_time);
 
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
@@ -734,6 +736,19 @@ omping_process_query_msg(struct omping_instance *instance, const char *msg, size
 		    msg_decoded, from));
 	}
 
+	/*
+	 * Rate limiting
+	 */
+	if (instance->rate_limit_time > 0) {
+		if (gcra_rl(&rh_item->server_info.gcra, util_get_time()) == 0) {
+			DEBUG_PRINTF("Received message rate limited");
+			return (0);
+		}
+	}
+
+	/*
+	 * Answer to query message
+	 */
 	return (ms_answer(instance->ucast_socket, &instance->mcast_addr.sas, msg, msg_len,
 	    msg_decoded, from, instance->ttl, MS_ANSWER_BOTH));
 }

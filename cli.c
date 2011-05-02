@@ -65,13 +65,15 @@ static void	usage();
  * of miliseconds to wait before exit to allow other nodes not to screw up final statistics.
  * dup_buf_items is number of items which should be stored in duplicate packet detection buffer.
  * Default is MIN_DUP_BUF_ITEMS for intervals > 1, or DUP_BUF_SECS value divided by ping interval
- * in seconds or 0, which is used for disabling duplicate detection.
+ * in seconds or 0, which is used for disabling duplicate detection. rate_limit_time is maximum
+ * time between two received packets.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
-    int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items)
+    int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items,
+    int *rate_limit_time)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -82,6 +84,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	int ch;
 	int force;
 	int num;
+	int rate_limit_time_set;
 	int wait_for_finish_time_set;
 
 	*ip_ver = 0;
@@ -92,17 +95,19 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*ttl = DEFAULT_TTL;
 	*single_addr = 0;
 	*quiet = 0;
+	*rate_limit_time = 0;
 	*transport_method = SF_TM_ASM;
 	*timeout_time = 0;
 	*wait_for_finish_time = 0;
 	*dup_buf_items = MIN_DUP_BUF_ITEMS;
 	port_s = DEFAULT_PORT_S;
 	force = 0;
+	rate_limit_time_set = 0;
 	wait_for_finish_time_set = 0;
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CDFqVvi:M:m:p:T:t:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CDFqVvi:M:m:p:r:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -144,6 +149,15 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'p':
 			port_s = optarg;
+			break;
+		case 'r':
+			numd = strtod(optarg, &ep);
+			if (numd < 0 || *ep != '\0' || numd * 1000 > INT32_MAX) {
+				warnx("illegal number, -r argument -- %s", optarg);
+				goto error_usage_exit;
+			}
+			*rate_limit_time = (int)(numd * 1000.0);
+			rate_limit_time_set = 1;
 			break;
 		case 't':
 			num = strtol(optarg, &ep, 10);
@@ -232,6 +246,10 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 		if (*dup_buf_items < MIN_DUP_BUF_ITEMS) {
 			*dup_buf_items = MIN_DUP_BUF_ITEMS;
 		}
+	}
+
+	if (!rate_limit_time_set) {
+		*rate_limit_time = *wait_time;
 	}
 
 	TAILQ_INIT(ai_list);
@@ -653,5 +671,6 @@ usage()
 
 	printf("usage: %s [-46CDFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
 	    PROGRAM_NAME);
-	printf("              [-p port] [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n");
+	printf("              [-p port] [-r rate_limit] [-T timeout] [-t ttl] [-w wait_time]\n");
+	printf("              remote_addr...\n");
 }

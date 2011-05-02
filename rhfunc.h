@@ -30,6 +30,7 @@
 #include <netdb.h>
 
 #include "addrfunc.h"
+#include "gcra.h"
 #include "util.h"
 
 #ifdef __cplusplus
@@ -76,9 +77,10 @@ struct rh_item_ci {
  * Remote host info item, server info part
  */
 struct rh_item_si {
-	enum		rh_server_state state;
-	char		ses_id[SESSIONID_LEN];
-	struct timeval	last_init_ts;
+	enum			rh_server_state state;
+	char			ses_id[SESSIONID_LEN];
+	struct gcra_item	gcra;
+	struct timeval		last_init_ts;
 };
 
 /*
@@ -97,10 +99,10 @@ struct rh_item {
 TAILQ_HEAD(rh_list, rh_item);
 
 extern struct rh_item	*rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr,
-    int dup_buf_items);
+    int dup_buf_items, int rate_limit_time);
 
 extern void		 rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs,
-    int dup_buf_items);
+    int dup_buf_items, int rate_limit_time);
 
 extern struct rh_item	*rh_list_find(struct rh_list *rh_list, const struct sockaddr *sa);
 extern void		 rh_list_free(struct rh_list *rh_list);
