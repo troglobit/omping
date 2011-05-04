@@ -70,6 +70,28 @@ af_ai_deep_eq(const struct addrinfo *a1, const struct addrinfo *a2)
 }
 
 /*
+ * Find out if ai is duplicate of items in ai_list. ai_list is first addrinfo item (returned by
+ * getaddrinfo) and list is traversed up to ai item.
+ * Function return 0 if ai is not duplicate of items in ai_list, otherwise 1
+ */
+int
+af_ai_is_dup(const struct addrinfo *ai_list, const struct addrinfo *ai)
+{
+	const struct addrinfo *ai_i;
+	int res;
+
+	res = 0;
+
+	for (ai_i = ai_list; res == 0 && ai_i != ai && ai_i != NULL; ai_i = ai_i->ai_next) {
+		if (af_ai_eq(ai_i, ai)) {
+			res = 1;
+		}
+	}
+
+	return (res);
+}
+
+/*
  * Test if given list of addrinfo ai is loopback address or not. Returns > 0 if
  * addrinfo list ai is loopback, otherwise 0. This one goes to deep.
  */
@@ -259,6 +281,12 @@ af_find_local_ai(const struct ai_list *ai_list, int *ip_ver, struct ifaddrs **if
 
 	TAILQ_FOREACH(aip, ai_list, entries) {
 		for (ai_i = aip->ai; ai_i != NULL; ai_i = ai_i->ai_next) {
+			if (af_ai_is_dup(aip->ai, ai_i)) {
+				logging_sa_to_str(ai_i->ai_addr, sa_str, sizeof(sa_str));
+				DEBUG2_PRINTF("Found duplicate addr %s", sa_str);
+				continue ;
+			}
+
 			for (ifa_i = ifa; ifa_i != NULL; ifa_i = ifa_i->ifa_next) {
 				if (ifa_i->ifa_addr == NULL ||
 				    (ifa_i->ifa_addr->sa_family != AF_INET &&

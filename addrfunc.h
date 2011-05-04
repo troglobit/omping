@@ -63,6 +63,7 @@ extern int		 af_ai_eq(const struct addrinfo *a1, const struct addrinfo *a2);
 extern int		 af_ai_deep_eq(const struct addrinfo *a1, const struct addrinfo *a2);
 extern int		 af_ai_deep_is_loopback(const struct addrinfo *a1);
 extern int		 af_ai_deep_supported_ipv(const struct addrinfo *ai_addr);
+extern int		 af_ai_is_dup(const struct addrinfo *ai_list, const struct addrinfo *ai);
 extern int		 af_ai_is_loopback(const struct addrinfo *ai);
 extern void		 af_ai_list_free(struct ai_list *ai_list);
 extern int		 af_ai_supported_ipv(const struct addrinfo *ai_addr);
