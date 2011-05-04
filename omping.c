@@ -237,7 +237,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
-	    instance->single_addr, instance->local_ifname, instance->transport_method);
+	    instance->single_addr, instance->local_ifname, instance->transport_method, 1);
 
 	if (instance->ucast_socket == -1) {
 		err(1, "Can't create/bind unicast socket");
@@ -246,7 +246,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	instance->mcast_socket =
 	    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
 		AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname, instance->ttl,
-		instance->single_addr, instance->transport_method, &instance->remote_addrs);
+		instance->single_addr, instance->transport_method, &instance->remote_addrs, 1);
 
 	if (instance->mcast_socket == -1) {
 		err(1, "Can't create/bind multicast socket");

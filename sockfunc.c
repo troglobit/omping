@@ -55,13 +55,15 @@ sf_bind_socket(const struct sockaddr *bind_addr, int sock)
  * local_addr address on local_ifname NIC interface with ttl Time-To-Live. allow_mcast_loop
  * is boolean flag to set mcast_loop. transport_method is transport method to use. remote_addrs are
  * list of remote addresses of ai_list type. This is used for SSM to join into appropriate source
- * groups.
+ * groups. If receive_timestamp is set, recvmsg cmsg will (if supported) contain timestamp of
+ * packet receive.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
     const char *local_ifname, uint8_t ttl, int allow_mcast_loop,
-    enum sf_transport_method transport_method, const struct ai_list *remote_addrs)
+    enum sf_transport_method transport_method, const struct ai_list *remote_addrs,
+    int receive_timestamp)
 {
 	int sock;
 
@@ -82,6 +84,12 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 
 	if (sf_set_socket_recvttl(mcast_addr, sock) == -1) {
 		return (-1);
+	}
+
+	if (receive_timestamp) {
+		if (sf_set_socket_timestamp(sock) == -1) {
+			return (-1);
+		}
 	}
 
 	if (sf_set_socket_reuse(sock) == -1) {
@@ -135,12 +143,14 @@ sf_create_udp_socket(const struct sockaddr *sa)
  * Create and bind UDP unicast socket with ttl Time-To-Live. It can also set multicast ttl if
  * set_mcast_ttl not 0. If mcast_send is set, options for sending multicast packets are set.
  * allow_mcast_loop is boolean flag to set mcast_loop. local_ifname is name of local interface
- * where local_addr is present. transport_method is transport method to use.
+ * where local_addr is present. transport_method is transport method to use. If receive_timestamp is
+ * set, recvmsg cmsg will (if supported) contain timestamp of packet receive.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mcast_send,
-    int allow_mcast_loop, const char *local_ifname, enum sf_transport_method transport_method)
+    int allow_mcast_loop, const char *local_ifname, enum sf_transport_method transport_method,
+    int receive_timestamp)
 {
 	int sock;
 
@@ -175,6 +185,12 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 
 	if (sf_set_socket_recvttl(local_addr, sock) == -1) {
 		return (-1);
+	}
+
+	if (receive_timestamp) {
+		if (sf_set_socket_timestamp(sock) == -1) {
+			return (-1);
+		}
 	}
 
 	if (sf_bind_socket(local_addr, sock) == -1) {
@@ -528,6 +544,28 @@ sf_set_socket_reuse(int sock)
 #ifdef SO_REUSEPORT
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) == -1) {
 		DEBUG_PRINTF("setsockopt SO_REUSEPORT failed");
+
+		return (-1);
+	}
+#endif
+
+	return (0);
+}
+
+/*
+ * Enable receiving of timestamp for socket.
+ * Function returns 0 on success, otherwise -1.
+ */
+int
+sf_set_socket_timestamp(int sock)
+{
+	int opt;
+
+#ifdef SO_TIMESTAMP
+	opt = 1;
+
+	if (setsockopt(sock, SOL_SOCKET, SO_TIMESTAMP, &opt, sizeof(opt)) == -1) {
+		DEBUG_PRINTF("setsockopt SO_TIMESTAMP failed");
 
 		return (-1);
 	}
