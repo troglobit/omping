@@ -99,17 +99,20 @@ static int	omping_poll_timeout(struct omping_instance *instance, struct timeval 
     int timeout_time);
 
 static int	omping_process_msg(struct omping_instance *instance, const char *msg,
-    size_t msg_len, const struct sockaddr_storage *from, uint8_t ttl, int ucast);
+    size_t msg_len, const struct sockaddr_storage *from, uint8_t ttl, int ucast,
+    struct timeval rp_timestamp);
 
 static int	omping_process_answer_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
-    uint8_t ttl, int ucast);
+    uint8_t ttl, int ucast, struct timeval rp_timestamp);
 
 static int	omping_process_init_msg(struct omping_instance *instance, const char *msg,
-    size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from);
+    size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
+    struct timeval rp_timestamp);
 
 static int	omping_process_query_msg(struct omping_instance *instance, const char *msg,
-    size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from);
+    size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
+    struct timeval rp_timestamp);
 
 static int	omping_process_response_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from);
@@ -332,7 +335,7 @@ omping_poll_receive_loop(struct omping_instance *instance, int timeout_time)
 
 			if (receive_res > 0) {
 				res = omping_process_msg(instance, msg, receive_res, &from, ttl,
-				    (i == 0));
+				    (i == 0), rp_timestamp);
 
 				if (res == -2) {
 					return (-2);
@@ -388,13 +391,13 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
 /*
  * Process received message. Instance is omping instance, msg is received message with msg_len
  * length, from is source of message. ttl is packet Time-To-Live or 0, if that information was not
- * available. ucast is boolean variable which
- * determines whether packet is unicast (true != 0) or multicast (false = 0).
+ * available. ucast is boolean variable which determines whether packet is unicast (true != 0)
+ * or multicast (false = 0). rp_timestamp is receiving time of packet.
  * Function returns 0 on success or -2 on EINTR.
  */
 static int
 omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
-    const struct sockaddr_storage *from, uint8_t ttl, int ucast)
+    const struct sockaddr_storage *from, uint8_t ttl, int ucast, struct timeval rp_timestamp)
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	struct msg_decoded msg_decoded;
@@ -420,7 +423,8 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 		case MSG_TYPE_INIT:
 			if (!ucast)
 				goto error_unknown_mcast;
-			res = omping_process_init_msg(instance, msg, msg_len, &msg_decoded, from);
+			res = omping_process_init_msg(instance, msg, msg_len, &msg_decoded, from,
+			    rp_timestamp);
 			break;
 		case MSG_TYPE_RESPONSE:
 			if (!ucast)
@@ -431,11 +435,12 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 		case MSG_TYPE_QUERY:
 			if (!ucast)
 				goto error_unknown_mcast;
-			res = omping_process_query_msg(instance, msg, msg_len, &msg_decoded, from);
+			res = omping_process_query_msg(instance, msg, msg_len, &msg_decoded, from,
+			    rp_timestamp);
 			break;
 		case MSG_TYPE_ANSWER:
 			res = omping_process_answer_msg(instance, msg, msg_len, &msg_decoded, from,
-			    ttl, ucast);
+			    ttl, ucast, rp_timestamp);
 			break;
 		}
 	}
@@ -495,7 +500,8 @@ is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, int ucast)
  * Process answer message. Instance is omping instance, msg is received message with msg_len length,
  * msg_decoded is decoded message, from is address of sender. ttl is Time-To-Live of packet. If ttl
  * is 0, it means that it was not possible to find out ttl. ucast is boolean variable which
- * determines whether packet is unicast (true != 0) or multicast (false = 0).
+ * determines whether packet is unicast (true != 0) or multicast (false = 0). rp_timestamp is
+ * receiving time of packet.
  * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be
  * created (usually due to small message buffer), or -5 if message is invalid (not for us, message
  * without client_id, ...).
@@ -503,7 +509,7 @@ is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, int ucast)
 static int
 omping_process_answer_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
     const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from, uint8_t ttl,
-    int ucast)
+    int ucast, struct timeval rp_timestamp)
 {
 	struct rh_item *rh_item;
 	double avg_rtt;
@@ -554,7 +560,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 	if (msg_decoded->client_tstamp_isset) {
 		rtt_set = 1;
-		rtt = util_time_double_absdiff_ns(msg_decoded->client_tstamp, util_get_time());
+		rtt = util_time_double_absdiff_ns(msg_decoded->client_tstamp, rp_timestamp);
 	} else {
 		rtt_set = 0;
 		rtt = 0;
@@ -628,13 +634,15 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 /*
  * Process init messge. instance is omping_instance, msg is received message with msg_len length,
- * msg_decoded is decoded message and from is sockaddr of sender.
+ * msg_decoded is decoded message and from is sockaddr of sender. rp_timestamp is receiving time
+ * of packet.
  * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be
  * created (usually due to small message buffer)
  */
 static int
 omping_process_init_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
-    const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from)
+    const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
+    struct timeval rp_timestamp)
 {
 	struct rh_item *rh_item;
 	struct tlv_iterator tlv_iter;
@@ -682,7 +690,7 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
 		    from, 0, 1, NULL, 0));
 	}
 
-	if (util_time_absdiff(rh_item->server_info.last_init_ts, util_get_time()) <
+	if (util_time_absdiff(rh_item->server_info.last_init_ts, rp_timestamp) <
 	    DEFAULT_WAIT_TIME) {
 		DEBUG_PRINTF("Time diff between two init messages too short. Ignoring message.");
 		return (0);
@@ -690,7 +698,7 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
 
 	util_gen_sid(rh_item->server_info.ses_id);
 	rh_item->server_info.state = RH_SS_ANSWER;
-	rh_item->server_info.last_init_ts = util_get_time();
+	rh_item->server_info.last_init_ts = rp_timestamp;
 
 	return (ms_response(instance->ucast_socket, &instance->mcast_addr.sas, msg_decoded, from,
 	    1, 0, rh_item->server_info.ses_id, SESSIONID_LEN));
@@ -698,13 +706,15 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
 
 /*
  * Process query msg. instance is omping instance, msg is received message with msg_len length,
- * msg_decoded is decoded message and from is sender of message.
+ * msg_decoded is decoded message and from is sender of message. rp_timestamp is receiving time
+ * of packet.
  * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be
  * created (usually due to small message buffer)
  */
 static int
 omping_process_query_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
-    const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from)
+    const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
+    struct timeval rp_timestamp)
 {
 	struct rh_item *rh_item;
 
@@ -742,7 +752,7 @@ omping_process_query_msg(struct omping_instance *instance, const char *msg, size
 	 * Rate limiting
 	 */
 	if (instance->rate_limit_time > 0) {
-		if (gcra_rl(&rh_item->server_info.gcra, util_get_time()) == 0) {
+		if (gcra_rl(&rh_item->server_info.gcra, rp_timestamp) == 0) {
 			DEBUG_PRINTF("Received message rate limited");
 			return (0);
 		}
