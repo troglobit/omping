@@ -180,7 +180,8 @@ main(int argc, char *argv[])
  * Compute packet loss in percent from number of send and received packets
  */
 static int
-get_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received) {
+get_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received)
+{
 	int loss;
 
 	if (packet_received > packet_sent) {

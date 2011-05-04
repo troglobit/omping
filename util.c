@@ -44,7 +44,9 @@ void	util_gen_id_add_sas(char *id, size_t len, size_t *pos, const struct sockadd
  * Returns absolute value of n
  */
 double
-util_fabs(double n) {
+util_fabs(double n)
+{
+
 	return (n < 0 ? -n : n);
 }
 
@@ -285,7 +287,8 @@ util_tv_to_ms(struct timeval t1)
  * Return sqrt of 64bit unsigned int n
  */
 uint32_t
-util_u64sqrt(uint64_t n) {
+util_u64sqrt(uint64_t n)
+{
 	double x, x2;
 
 	if (n == 0) {

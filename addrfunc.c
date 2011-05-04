@@ -41,7 +41,9 @@
  * list of them.
  */
 int
-af_ai_eq(const struct addrinfo *a1, const struct addrinfo *a2) {
+af_ai_eq(const struct addrinfo *a1, const struct addrinfo *a2)
+{
+
 	return ((a1->ai_family == a2->ai_family) &&
 	    (a1->ai_socktype == a2->ai_socktype) &&
 	    (a1->ai_protocol == a2->ai_protocol) &&
