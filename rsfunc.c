@@ -127,13 +127,14 @@ rs_poll_timeout(int unicast_socket, int multicast_socket, int timeout, struct ti
  * Wrapper on top of recvmsg which emulates recvfrom but it's also able to return ttl. sock is
  * socket where to make recvmsg. from_addr is address where address of source will be stored. msg is
  * buffer where to store message with maximum msg_len size. ttl is pointer where TTL (time-to-live)
- * from packet will be stored (or 0 if no such information is available).
+ * from packet will be stored (or 0 if no such information is available). Timestamp is ether
+ * SCM_TIMESTAMP directly from packet (if supported) or current get gettimeofday.
  * Return number of received bytes, or -2 on EINTR, -3 on one of EHOSTUNREACH | ENETDOWN |
  * EHOSTDOWN, -4 if message is truncated, or -1 on different error.
  */
 ssize_t
 rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t msg_len,
-    uint8_t *ttl)
+    uint8_t *ttl, struct timeval *timestamp)
 {
 	char cmsg_buf[CMSG_SPACE(1024)];
 	struct cmsghdr *cmsg;
@@ -141,8 +142,10 @@ rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t m
 	struct msghdr msg_hdr;
 	ssize_t recv_size;
 	int ittl;
+	int timestamp_set;
 
 	ittl = 0;
+	timestamp_set = 0;
 
 	memset(&msg_iovec, 0, sizeof(msg_iovec));
 	msg_iovec.iov_base = msg;
@@ -180,6 +183,14 @@ rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t m
 
 	for (cmsg = CMSG_FIRSTHDR(&msg_hdr); cmsg != NULL; cmsg = CMSG_NXTHDR(&msg_hdr, cmsg)) {
 		switch (cmsg->cmsg_level) {
+		case SOL_SOCKET:
+#ifdef SCM_TIMESTAMP
+			if (cmsg->cmsg_type == SCM_TIMESTAMP &&
+			    cmsg->cmsg_len >= sizeof(struct timeval)) {
+				memcpy(timestamp, CMSG_DATA(cmsg), sizeof(struct timeval));
+				timestamp_set = 1;
+			}
+#endif
 		case IPPROTO_IP:
 			if (cmsg->cmsg_type == IP_TTL && cmsg->cmsg_len == CMSG_LEN(sizeof(int))) {
 				memcpy(&ittl, CMSG_DATA(cmsg), sizeof(ittl));
@@ -200,6 +211,10 @@ rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t m
 	}
 
 	*ttl = (uint8_t)ittl;
+
+	if (!timestamp_set) {
+		*timestamp = util_get_time();
+	}
 
 	return (recv_size);
 }

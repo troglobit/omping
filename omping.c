@@ -284,6 +284,7 @@ omping_poll_receive_loop(struct omping_instance *instance, int timeout_time)
 	char msg[MAX_MSG_SIZE];
 	struct sockaddr_storage from;
 	struct timeval old_tstamp;
+	struct timeval rp_timestamp;
 	int i;
 	int poll_res;
 	int receive_res;
@@ -304,12 +305,12 @@ omping_poll_receive_loop(struct omping_instance *instance, int timeout_time)
 
 			if (i == 0 && poll_res & 1) {
 				receive_res = rs_receive_msg(instance->ucast_socket, &from, msg,
-				    sizeof(msg), &ttl);
+				    sizeof(msg), &ttl, &rp_timestamp);
 			}
 
 			if (i == 1 && poll_res & 2) {
 				receive_res = rs_receive_msg(instance->mcast_socket, &from, msg,
-				    sizeof(msg), &ttl);
+				    sizeof(msg), &ttl, &rp_timestamp);
 			}
 
 			switch (receive_res) {
