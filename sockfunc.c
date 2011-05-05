@@ -559,9 +559,9 @@ sf_set_socket_reuse(int sock)
 int
 sf_set_socket_timestamp(int sock)
 {
+#ifdef SO_TIMESTAMP
 	int opt;
 
-#ifdef SO_TIMESTAMP
 	opt = 1;
 
 	if (setsockopt(sock, SOL_SOCKET, SO_TIMESTAMP, &opt, sizeof(opt)) == -1) {
