@@ -56,15 +56,17 @@ sf_bind_socket(const struct sockaddr *bind_addr, int sock)
  * is boolean flag to set mcast_loop. transport_method is transport method to use. remote_addrs are
  * list of remote addresses of ai_list type. This is used for SSM to join into appropriate source
  * groups. If receive_timestamp is set, recvmsg cmsg will (if supported) contain timestamp of
- * packet receive.
+ * packet receive. force_recv_ttl is used to force set of recvttl (if option is not supported,
+ * error is returned).
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
     const char *local_ifname, uint8_t ttl, int allow_mcast_loop,
     enum sf_transport_method transport_method, const struct ai_list *remote_addrs,
-    int receive_timestamp)
+    int receive_timestamp, int force_recvttl)
 {
+	int res;
 	int sock;
 
 	sock = sf_create_udp_socket(mcast_addr);
@@ -82,7 +84,8 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
-	if (sf_set_socket_recvttl(mcast_addr, sock) == -1) {
+	res = sf_set_socket_recvttl(local_addr, sock);
+	if (res == -1 || (res == -2 && force_recvttl)) {
 		return (-1);
 	}
 
@@ -144,14 +147,16 @@ sf_create_udp_socket(const struct sockaddr *sa)
  * set_mcast_ttl not 0. If mcast_send is set, options for sending multicast packets are set.
  * allow_mcast_loop is boolean flag to set mcast_loop. local_ifname is name of local interface
  * where local_addr is present. transport_method is transport method to use. If receive_timestamp is
- * set, recvmsg cmsg will (if supported) contain timestamp of packet receive.
+ * set, recvmsg cmsg will (if supported) contain timestamp of packet receive. force_recv_ttl is
+ * used to force set of recvttl (if option is not supported, error is returned).
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mcast_send,
     int allow_mcast_loop, const char *local_ifname, enum sf_transport_method transport_method,
-    int receive_timestamp)
+    int receive_timestamp, int force_recvttl)
 {
+	int res;
 	int sock;
 
 	sock = sf_create_udp_socket(local_addr);
@@ -183,7 +188,8 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 		}
 	}
 
-	if (sf_set_socket_recvttl(local_addr, sock) == -1) {
+	res = sf_set_socket_recvttl(local_addr, sock);
+	if (res == -1 || (res == -2 && force_recvttl)) {
 		return (-1);
 	}
 
@@ -483,7 +489,8 @@ sf_set_socket_mcast_loop(const struct sockaddr *mcast_addr, int sock, int enable
 /*
  * Set option to receive TTL inside packet information (recvmsg). sa is sockaddr used for address
  * family and sock is socket to use.
- * Function returns 0 on success, otherwise -1.
+ * Function returns 0 on success. -2 is returned on systems, where IP_RECVTTL is not available,
+ * otherwise -1 is returned.
  */
 int
 sf_set_socket_recvttl(const struct sockaddr *sa, int sock)
@@ -494,11 +501,15 @@ sf_set_socket_recvttl(const struct sockaddr *sa, int sock)
 
 	switch (sa->sa_family) {
 	case AF_INET:
+#ifdef IP_RECVTTL
 		if (setsockopt(sock, IPPROTO_IP, IP_RECVTTL, &opt, sizeof(opt)) == -1) {
 			DEBUG_PRINTF("setsockopt IP_RECVTTL failed");
 
 			return (-1);
 		}
+#else
+		return (-2);
+#endif
 		break;
 	case AF_INET6:
 #ifdef IPV6_RECVHOPLIMIT
