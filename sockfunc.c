@@ -34,6 +34,9 @@
 #include "logging.h"
 #include "sockfunc.h"
 
+static int	sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast,
+    uint8_t ttl, int force_recvttl, int receive_timestamp);
+
 /*
  * Bind socket sock to given address bind_addr.
  * Function returns 0 on success, otherwise -1.
@@ -66,7 +69,6 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
     enum sf_transport_method transport_method, const struct ai_list *remote_addrs,
     int receive_timestamp, int force_recvttl)
 {
-	int res;
 	int sock;
 
 	sock = sf_create_udp_socket(mcast_addr);
@@ -74,25 +76,9 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
-	if (mcast_addr->sa_family == AF_INET6) {
-		if (sf_set_socket_ipv6only(mcast_addr, sock) == -1) {
-			return (-1);
-		}
-	}
-
-	if (sf_set_socket_ttl(mcast_addr, 1, sock, ttl) == -1) {
+	if (sf_set_socket_common_options(sock, mcast_addr, 1, ttl, force_recvttl,
+	    receive_timestamp) == -1) {
 		return (-1);
-	}
-
-	res = sf_set_socket_recvttl(local_addr, sock);
-	if (res == -1 || (res == -2 && force_recvttl)) {
-		return (-1);
-	}
-
-	if (receive_timestamp) {
-		if (sf_set_socket_timestamp(sock) == -1) {
-			return (-1);
-		}
 	}
 
 	if (sf_set_socket_reuse(sock) == -1) {
@@ -156,7 +142,6 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
     int allow_mcast_loop, const char *local_ifname, enum sf_transport_method transport_method,
     int receive_timestamp, int force_recvttl)
 {
-	int res;
 	int sock;
 
 	sock = sf_create_udp_socket(local_addr);
@@ -164,13 +149,8 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 		return (-1);
 	}
 
-	if (local_addr->sa_family == AF_INET6) {
-		if (sf_set_socket_ipv6only(local_addr, sock) == -1) {
-			return (-1);
-		}
-	}
-
-	if (sf_set_socket_ttl(local_addr, 0, sock, ttl) == -1) {
+	if (sf_set_socket_common_options(sock, local_addr, 0, ttl, force_recvttl,
+	    receive_timestamp) == -1) {
 		return (-1);
 	}
 
@@ -184,17 +164,6 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 		}
 
 		if (sf_set_socket_mcast_if(local_addr, sock, local_ifname) == -1) {
-			return (-1);
-		}
-	}
-
-	res = sf_set_socket_recvttl(local_addr, sock);
-	if (res == -1 || (res == -2 && force_recvttl)) {
-		return (-1);
-	}
-
-	if (receive_timestamp) {
-		if (sf_set_socket_timestamp(sock) == -1) {
 			return (-1);
 		}
 	}
@@ -369,6 +338,44 @@ sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr, const struct soc
 	TAILQ_FOREACH(ai_item_i, remote_addrs, entries) {
 		if (sf_mcast_join_ssm_group(mcast_addr, local_addr,
 		    (const struct sockaddr *)&ai_item_i->sas, local_ifname, sock) == -1) {
+			return (-1);
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Set common options for socket. Options are ipv6only, ttl, recvttl and receive timestamp. sock is
+ * socket to set options, addr is address, mcast should be true if socket is multicast otherwise
+ * false, ttl is new Time-To-Live. force_recv_ttl is used to force set of recvttl (if option is
+ * not supported, error is returned). If receive_timestamp is set, recvmsg cmsg will (if
+ * supported) contain timestamp of packet receive.
+ * Return -1 on failure, otherwise 0.
+ */
+static int
+sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, uint8_t ttl,
+    int force_recvttl, int receive_timestamp)
+{
+	int res;
+
+	if (addr->sa_family == AF_INET6) {
+		if (sf_set_socket_ipv6only(addr, sock) == -1) {
+			return (-1);
+		}
+	}
+
+	if (sf_set_socket_ttl(addr, mcast, sock, ttl) == -1) {
+		return (-1);
+	}
+
+	res = sf_set_socket_recvttl(addr, sock);
+	if (res == -1 || (res == -2 && force_recvttl)) {
+		return (-1);
+	}
+
+	if (receive_timestamp) {
+		if (sf_set_socket_timestamp(sock) == -1) {
 			return (-1);
 		}
 	}
