@@ -422,8 +422,8 @@ sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, u
 
 	DEBUG_PRINTF("Send buffer (%scast socket) allocated %u bytes", cast_str, new_buf_size);
 	if (new_buf_size < sndbuf_size) {
-		VERBOSE_PRINTF("Send buffer size option was %u bytes, but only %u bytes was "
-		    "allocated", sndbuf_size, new_buf_size);
+		VERBOSE_PRINTF("Send buffer (%scast socket) size option was %u bytes, but only %u"
+		    " bytes was allocated", cast_str, sndbuf_size, new_buf_size);
 	}
 
 	if (sf_set_socket_buf_size(sock, 0, rcvbuf_size, &new_buf_size) == -1) {
@@ -432,8 +432,8 @@ sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, u
 
 	DEBUG_PRINTF("Receive buffer (%scast socket) allocated %u bytes", cast_str, new_buf_size);
 	if (new_buf_size < rcvbuf_size) {
-		VERBOSE_PRINTF("Receive buffer size option was %u bytes, but only %u bytes was "
-		    "allocated", rcvbuf_size, new_buf_size);
+		VERBOSE_PRINTF("Receive buffer (%scast socket) size option was %u bytes, but only"
+		    " %u bytes was allocated", cast_str, rcvbuf_size, new_buf_size);
 	}
 
 	if (addr->sa_family == AF_INET6) {

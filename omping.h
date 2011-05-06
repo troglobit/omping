@@ -59,6 +59,12 @@ extern "C" {
 #define GCRA_BURST		5
 
 /*
+ * Minimum send and receive socket buffer size
+ */
+#define MIN_SNDBUF_SIZE		2048
+#define MIN_RCVBUF_SIZE		2048
+
+/*
  * Protocol version used in messages
  */
 #define PROTOCOL_VERSION	2

@@ -62,6 +62,8 @@ struct omping_instance {
 	int		mcast_socket;
 	int		quiet;
 	int		rate_limit_time;
+	int		rcvbuf_size;
+	int		sndbuf_size;
 	int		single_addr;
 	int		timeout_time;
 	int		ucast_socket;
@@ -233,7 +235,8 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
 	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
 	    &instance->quiet, &instance->cont_stat, &instance->timeout_time,
-	    &instance->wait_for_finish_time, &instance->dup_buf_items, &instance->rate_limit_time);
+	    &instance->wait_for_finish_time, &instance->dup_buf_items, &instance->rate_limit_time,
+	    &instance->sndbuf_size, &instance->rcvbuf_size);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs, instance->dup_buf_items,
 	    instance->rate_limit_time);
@@ -241,7 +244,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
 	    instance->single_addr, instance->local_ifname, instance->transport_method, 1, 0,
-	    0, 0);
+	    instance->sndbuf_size, instance->rcvbuf_size);
 
 	if (instance->ucast_socket == -1) {
 		err(1, "Can't create/bind unicast socket");
@@ -251,7 +254,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
 		AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname, instance->ttl,
 		instance->single_addr, instance->transport_method, &instance->remote_addrs, 1, 0,
-		0,0);
+		instance->sndbuf_size, instance->rcvbuf_size);
 
 	if (instance->mcast_socket == -1) {
 		err(1, "Can't create/bind multicast socket");

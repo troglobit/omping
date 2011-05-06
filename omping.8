@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd May 04, 2011
+.Dd May 06, 2011
 .Dt OMPING 8
 .Os
 .
@@ -28,7 +28,9 @@
 .Op Fl M Ar transport_method
 .Op Fl m Ar mcast_addr
 .Op Fl p Ar port
+.Op Fl R Ar rcvbuf
 .Op Fl r Ar rate_limit
+.Op Fl S Ar sndbuf
 .Op Fl T Ar timeout
 .Op Fl t Ar ttl
 .Op Fl w Ar wait_time
@@ -92,6 +94,9 @@ Multicast address to listen on for multicast answer messages. Default is 232.43.
 and ff3e::4321:1234 for IPv6.
 .It Fl p Ar port
 Port to bind and listen on for both unicast and multicast messages. Default is 4321.
+.It Fl R Ar rcvbuf
+Set socket rcvbuf. Minimum value for this option is 2048. If not specified, rcvbuf is not changed
+and default OS provided value is used.
 .It Fl r Ar rate_limit
 Rate limit interval between two query messages to
 .Ar rate_limit
@@ -103,6 +108,9 @@ option. Rate limiting can be disabled by specifying 0 as value. Rate limiting is
 for
 .Fl i
 with 0 seconds.
+.It Fl S Ar sndbuf
+Set socket sndbuf. Minimum value for this option is 2048. If not specified, sndbuf is not changed
+and default OS provided value is used.
 .It Fl T Ar timeout
 Specify a timeout, in seconds, before
 .Nm

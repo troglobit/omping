@@ -66,14 +66,16 @@ static void	usage();
  * dup_buf_items is number of items which should be stored in duplicate packet detection buffer.
  * Default is MIN_DUP_BUF_ITEMS for intervals > 1, or DUP_BUF_SECS value divided by ping interval
  * in seconds or 0, which is used for disabling duplicate detection. rate_limit_time is maximum
- * time between two received packets.
+ * time between two received packets. sndbuf_size is size of socket buffer to allocate for sending
+ * packets. rcvbuf_size is size of socket buffer to allocate for receiving packets. Both
+ * sndbuf_size and rcvbuf_size are set to 0 if user doesn't supply option.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
     int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items,
-    int *rate_limit_time)
+    int *rate_limit_time, int *sndbuf_size, int *rcvbuf_size)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -96,6 +98,8 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*single_addr = 0;
 	*quiet = 0;
 	*rate_limit_time = 0;
+	*rcvbuf_size = 0;
+	*sndbuf_size = 0;
 	*transport_method = SF_TM_ASM;
 	*timeout_time = 0;
 	*wait_for_finish_time = 0;
@@ -107,7 +111,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CDFqVvi:M:m:p:r:T:t:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CDFqVvi:M:m:p:R:r:S:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -150,6 +154,14 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 		case 'p':
 			port_s = optarg;
 			break;
+		case 'R':
+			numd = strtod(optarg, &ep);
+			if (numd < MIN_RCVBUF_SIZE || *ep != '\0' || numd > INT32_MAX) {
+				warnx("illegal number, -R argument -- %s", optarg);
+				goto error_usage_exit;
+			}
+			*rcvbuf_size = (int)numd;
+			break;
 		case 'r':
 			numd = strtod(optarg, &ep);
 			if (numd < 0 || *ep != '\0' || numd * 1000 > INT32_MAX) {
@@ -158,6 +170,14 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			}
 			*rate_limit_time = (int)(numd * 1000.0);
 			rate_limit_time_set = 1;
+			break;
+		case 'S':
+			numd = strtod(optarg, &ep);
+			if (numd < MIN_SNDBUF_SIZE || *ep != '\0' || numd > INT32_MAX) {
+				warnx("illegal number, -S argument -- %s", optarg);
+				goto error_usage_exit;
+			}
+			*sndbuf_size = (int)numd;
 			break;
 		case 't':
 			num = strtol(optarg, &ep, 10);
@@ -671,6 +691,6 @@ usage()
 
 	printf("usage: %s [-46CDFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
 	    PROGRAM_NAME);
-	printf("              [-p port] [-r rate_limit] [-T timeout] [-t ttl] [-w wait_time]\n");
-	printf("              remote_addr...\n");
+	printf("              [-p port] [-R rcvbuf] [-r rate_limit] [-S sndbuf] [-T timeout]\n");
+	printf("              [-t ttl] [-w wait_time] remote_addr...\n");
 }
