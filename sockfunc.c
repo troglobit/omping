@@ -35,7 +35,7 @@
 #include "sockfunc.h"
 
 static int	sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast,
-    uint8_t ttl, int force_recvttl, int receive_timestamp);
+    uint8_t ttl, int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size);
 
 /*
  * Bind socket sock to given address bind_addr.
@@ -60,14 +60,15 @@ sf_bind_socket(const struct sockaddr *bind_addr, int sock)
  * list of remote addresses of ai_list type. This is used for SSM to join into appropriate source
  * groups. If receive_timestamp is set, recvmsg cmsg will (if supported) contain timestamp of
  * packet receive. force_recv_ttl is used to force set of recvttl (if option is not supported,
- * error is returned).
+ * error is returned). sndbuf_size is size of socket buffer to allocate for sending packets.
+ * rcvbuf_size is size of socket buffer to allocate for receiving packets.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
     const char *local_ifname, uint8_t ttl, int allow_mcast_loop,
     enum sf_transport_method transport_method, const struct ai_list *remote_addrs,
-    int receive_timestamp, int force_recvttl)
+    int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size)
 {
 	int sock;
 
@@ -77,7 +78,7 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 	}
 
 	if (sf_set_socket_common_options(sock, mcast_addr, 1, ttl, force_recvttl,
-	    receive_timestamp) == -1) {
+	    receive_timestamp, sndbuf_size, rcvbuf_size) == -1) {
 		return (-1);
 	}
 
@@ -134,13 +135,15 @@ sf_create_udp_socket(const struct sockaddr *sa)
  * allow_mcast_loop is boolean flag to set mcast_loop. local_ifname is name of local interface
  * where local_addr is present. transport_method is transport method to use. If receive_timestamp is
  * set, recvmsg cmsg will (if supported) contain timestamp of packet receive. force_recv_ttl is
- * used to force set of recvttl (if option is not supported, error is returned).
+ * used to force set of recvttl (if option is not supported, error is returned). sndbuf_size is
+ * size of socket buffer to allocate for sending packets. rcvbuf_size is size of socket buffer
+ * to allocate for receiving packets.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mcast_send,
     int allow_mcast_loop, const char *local_ifname, enum sf_transport_method transport_method,
-    int receive_timestamp, int force_recvttl)
+    int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size)
 {
 	int sock;
 
@@ -150,7 +153,7 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 	}
 
 	if (sf_set_socket_common_options(sock, local_addr, 0, ttl, force_recvttl,
-	    receive_timestamp) == -1) {
+	    receive_timestamp, sndbuf_size, rcvbuf_size) == -1) {
 		return (-1);
 	}
 
@@ -346,18 +349,92 @@ sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr, const struct soc
 }
 
 /*
+ * Set buffer size for socket sock. snd_buf is boolean which if set, send buffer is modified,
+ * otherwise receive buffer is modified. buf_size is size of buffer to allocate. This can be <=0 and
+ * then buffer is left unchanged. new_buf_size is real size provided by OS. new_buf_size also
+ * accepts NULL as pointer, if information about new buffer size is not needed.
+ */
+int
+sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size)
+{
+	char *opt_name_s;
+	socklen_t optlen;
+	int opt_name;
+	int res;
+
+	if (snd_buf) {
+		opt_name = SO_SNDBUF;
+		opt_name_s = "SO_SNDBUF";
+	} else {
+		opt_name = SO_RCVBUF;
+		opt_name_s = "SO_RCVBUF";
+	}
+
+	if (buf_size > 0) {
+		res = setsockopt(sock, SOL_SOCKET, opt_name, &buf_size, sizeof(buf_size));
+
+		if (res == -1) {
+			DEBUG_PRINTF("setsockopt %s failed", opt_name_s);
+
+			return (-1);
+		}
+	}
+
+	if (new_buf_size == NULL) {
+		return (0);
+	}
+
+	optlen = sizeof(*new_buf_size);
+	res = getsockopt(sock, SOL_SOCKET, opt_name, new_buf_size, &optlen);
+
+	if (res == -1) {
+		DEBUG_PRINTF("getsockopt %s failed", opt_name_s);
+
+		return (-1);
+	}
+
+	return (0);
+}
+
+/*
  * Set common options for socket. Options are ipv6only, ttl, recvttl and receive timestamp. sock is
  * socket to set options, addr is address, mcast should be true if socket is multicast otherwise
  * false, ttl is new Time-To-Live. force_recv_ttl is used to force set of recvttl (if option is
  * not supported, error is returned). If receive_timestamp is set, recvmsg cmsg will (if
- * supported) contain timestamp of packet receive.
+ * supported) contain timestamp of packet receive. sndbuf_size is size of socket buffer to
+ * allocate for sending packets. rcvbuf_size is size of socket buffer to allocate for receiving
+ * packets.
  * Return -1 on failure, otherwise 0.
  */
 static int
 sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, uint8_t ttl,
-    int force_recvttl, int receive_timestamp)
+    int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size)
 {
+	const char *cast_str;
+	int new_buf_size;
 	int res;
+
+	cast_str = (!mcast ? "uni" : "multi");
+
+	if (sf_set_socket_buf_size(sock, 1, sndbuf_size, &new_buf_size) == -1) {
+		return (-1);
+	}
+
+	DEBUG_PRINTF("Send buffer (%scast socket) allocated %u bytes", cast_str, new_buf_size);
+	if (new_buf_size < sndbuf_size) {
+		VERBOSE_PRINTF("Send buffer size option was %u bytes, but only %u bytes was "
+		    "allocated", sndbuf_size, new_buf_size);
+	}
+
+	if (sf_set_socket_buf_size(sock, 0, rcvbuf_size, &new_buf_size) == -1) {
+		return (-1);
+	}
+
+	DEBUG_PRINTF("Receive buffer (%scast socket) allocated %u bytes", cast_str, new_buf_size);
+	if (new_buf_size < rcvbuf_size) {
+		VERBOSE_PRINTF("Receive buffer size option was %u bytes, but only %u bytes was "
+		    "allocated", rcvbuf_size, new_buf_size);
+	}
 
 	if (addr->sa_family == AF_INET6) {
 		if (sf_set_socket_ipv6only(addr, sock) == -1) {
