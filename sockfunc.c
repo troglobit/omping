@@ -92,7 +92,7 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
-	if (sf_set_socket_mcast_loop(mcast_addr, sock, 0) == -1) {
+	if (sf_set_socket_mcast_loop(mcast_addr, sock, allow_mcast_loop) == -1) {
 		return (-1);
 	}
 
