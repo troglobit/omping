@@ -27,6 +27,7 @@
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <errno.h>
 #include <netdb.h>
 #include <string.h>
 
@@ -35,7 +36,8 @@
 #include "sockfunc.h"
 
 static int	sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast,
-    uint8_t ttl, int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size);
+    uint8_t ttl, int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size,
+    int force_buf_size);
 
 /*
  * Bind socket sock to given address bind_addr.
@@ -78,7 +80,7 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 	}
 
 	if (sf_set_socket_common_options(sock, mcast_addr, 1, ttl, force_recvttl,
-	    receive_timestamp, sndbuf_size, rcvbuf_size) == -1) {
+	    receive_timestamp, sndbuf_size, rcvbuf_size, 1) == -1) {
 		return (-1);
 	}
 
@@ -153,7 +155,7 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 	}
 
 	if (sf_set_socket_common_options(sock, local_addr, 0, ttl, force_recvttl,
-	    receive_timestamp, sndbuf_size, rcvbuf_size) == -1) {
+	    receive_timestamp, sndbuf_size, rcvbuf_size, 1) == -1) {
 		return (-1);
 	}
 
@@ -352,15 +354,19 @@ sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr, const struct soc
  * Set buffer size for socket sock. snd_buf is boolean which if set, send buffer is modified,
  * otherwise receive buffer is modified. buf_size is size of buffer to allocate. This can be <=0 and
  * then buffer is left unchanged. new_buf_size is real size provided by OS. new_buf_size also
- * accepts NULL as pointer, if information about new buffer size is not needed.
+ * accepts NULL as pointer, if information about new buffer size is not needed. if force_buf_size is
+ * set and OS will not provide enough buffer, error code is returned and errno is set to ENOBUFS
+ * (this is emulation of *BSD behavior).
+ * On success 0 is returned, otherwise -1.
  */
 int
-sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size)
+sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size, int force_buf_size)
 {
 	char *opt_name_s;
 	socklen_t optlen;
 	int opt_name;
 	int res;
+	int tmp_buf_size;
 
 	if (snd_buf) {
 		opt_name = SO_SNDBUF;
@@ -380,17 +386,28 @@ sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size)
 		}
 	}
 
-	if (new_buf_size == NULL) {
+	if (new_buf_size == NULL && !force_buf_size) {
 		return (0);
 	}
 
-	optlen = sizeof(*new_buf_size);
-	res = getsockopt(sock, SOL_SOCKET, opt_name, new_buf_size, &optlen);
+	optlen = sizeof(tmp_buf_size);
+	res = getsockopt(sock, SOL_SOCKET, opt_name, &tmp_buf_size, &optlen);
 
 	if (res == -1) {
 		DEBUG_PRINTF("getsockopt %s failed", opt_name_s);
 
 		return (-1);
+	}
+
+	if (force_buf_size && tmp_buf_size < buf_size) {
+		VERBOSE_PRINTF("Buffer size request was %u bytes, but only %u"
+		    " bytes was allocated", buf_size, tmp_buf_size);
+		errno = ENOBUFS;
+		return (-1);
+	}
+
+	if (new_buf_size != NULL) {
+		*new_buf_size = tmp_buf_size;
 	}
 
 	return (0);
@@ -403,12 +420,13 @@ sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size)
  * not supported, error is returned). If receive_timestamp is set, recvmsg cmsg will (if
  * supported) contain timestamp of packet receive. sndbuf_size is size of socket buffer to
  * allocate for sending packets. rcvbuf_size is size of socket buffer to allocate for receiving
- * packets.
+ * packets. if force_buf_size is set and OS will not provide enough buffer, error code is returned
+ * and errno is set to ENOBUFS (this is emulation of *BSD behavior).
  * Return -1 on failure, otherwise 0.
  */
 static int
 sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, uint8_t ttl,
-    int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size)
+    int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size, int force_buf_size)
 {
 	const char *cast_str;
 	int new_buf_size;
@@ -416,25 +434,17 @@ sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, u
 
 	cast_str = (!mcast ? "uni" : "multi");
 
-	if (sf_set_socket_buf_size(sock, 1, sndbuf_size, &new_buf_size) == -1) {
+	if (sf_set_socket_buf_size(sock, 1, sndbuf_size, &new_buf_size, force_buf_size) == -1) {
 		return (-1);
 	}
 
 	DEBUG_PRINTF("Send buffer (%scast socket) allocated %u bytes", cast_str, new_buf_size);
-	if (new_buf_size < sndbuf_size) {
-		VERBOSE_PRINTF("Send buffer (%scast socket) size option was %u bytes, but only %u"
-		    " bytes was allocated", cast_str, sndbuf_size, new_buf_size);
-	}
 
-	if (sf_set_socket_buf_size(sock, 0, rcvbuf_size, &new_buf_size) == -1) {
+	if (sf_set_socket_buf_size(sock, 0, rcvbuf_size, &new_buf_size, force_buf_size) == -1) {
 		return (-1);
 	}
 
 	DEBUG_PRINTF("Receive buffer (%scast socket) allocated %u bytes", cast_str, new_buf_size);
-	if (new_buf_size < rcvbuf_size) {
-		VERBOSE_PRINTF("Receive buffer (%scast socket) size option was %u bytes, but only"
-		    " %u bytes was allocated", cast_str, rcvbuf_size, new_buf_size);
-	}
 
 	if (addr->sa_family == AF_INET6) {
 		if (sf_set_socket_ipv6only(addr, sock) == -1) {
