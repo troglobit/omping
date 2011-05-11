@@ -32,13 +32,94 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifdef __CYGWIN__
+#include <windows.h>
+#endif
+
 #include "logging.h"
 #include "util.h"
 
-void	util_gen_id(char *id, size_t len, const struct ai_item *ai_item,
+/*
+ * Function prototypes
+ */
+#ifdef __CYGWIN__
+static int	util_cygwin_gettimeofday(struct timeval *tv, struct timezone *tz);
+#endif
+
+static void	util_gen_id(char *id, size_t len, const struct ai_item *ai_item,
     const struct sockaddr_storage *sas);
 
-void	util_gen_id_add_sas(char *id, size_t len, size_t *pos, const struct sockaddr_storage *sas);
+static void	util_gen_id_add_sas(char *id, size_t len, size_t *pos,
+    const struct sockaddr_storage *sas);
+
+/*
+ * Functions implementation
+ */
+
+#ifdef __CYGWIN__
+/*
+ * cygwin version of gettimeofday but with microseconds precision. Uses windows Performance
+ * Counters to achieve precision if possible, otherwise cygwin gettimeofday implementation
+ * is used.
+ * Return 0 on success, otherwise -1.
+ */
+int
+util_cygwin_gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+	/* Frequency of performance counter */
+	static LARGE_INTEGER freq;
+	/* Offset of starting pc */
+	static LARGE_INTEGER perf_count_offset;
+	/* Actual pc */
+	static LARGE_INTEGER perf_count;
+	/* Miliseconds base time */
+	static uint64_t ms_base = 0;
+	/* Function was not called yet */
+	static int initialized = 0;
+	/* If not used pf, fallback to gettimeofday implementation */
+	static BOOL use_pf = 0;
+	/* Tmp timeval */
+	struct timeval tv2;
+	/* Diff between offset pc and actual pc */
+	int64_t perf_diff;
+	/* Actual time in miliseconds */
+	uint64_t ms;
+	/* Time in miliseconds returned by gettimeofday */
+	uint64_t ms_ref;
+
+	if (!initialized) {
+		initialized = 1;
+		use_pf = QueryPerformanceFrequency(&freq);
+		if (use_pf) {
+			QueryPerformanceCounter(&perf_count_offset);
+			gettimeofday(&tv2, tz);
+			ms_base = tv2.tv_sec * (uint64_t)1000000 + tv2.tv_usec;
+		}
+	}
+
+	if (use_pf) {
+		QueryPerformanceCounter(&perf_count);
+	} else {
+		return (gettimeofday(tv, tz));
+	}
+
+	perf_diff = perf_count.QuadPart - perf_count_offset.QuadPart;
+	ms = ((double)perf_diff / (double)freq.QuadPart) * 1000000.0 + ms_base;
+
+	gettimeofday(&tv2, tz);
+	ms_ref = tv2.tv_sec * (uint64_t)1000000 + tv2.tv_usec;
+
+	if (util_u64_absdiff(ms, ms_ref) > (uint64_t)1000000) {
+		ms_base = ms = ms_ref;
+		perf_count_offset.QuadPart = perf_count.QuadPart;
+	}
+
+	tv->tv_sec = ms / (uint64_t)1000000;
+	tv->tv_usec = ms % (uint64_t)1000000;
+
+	return (0);
+}
+#endif /* __CYGWIN__ */
 
 /*
  * Returns absolute value of n
@@ -54,7 +135,7 @@ util_fabs(double n)
  * generate random ID from current pid, random data from random(3) and optionally addresses ai_item
  * and sas. ID is stored in id with maximum length len.
  */
-void
+static void
 util_gen_id(char *id, size_t len, const struct ai_item *ai_item,
     const struct sockaddr_storage *sas)
 {
@@ -100,7 +181,7 @@ util_gen_id(char *id, size_t len, const struct ai_item *ai_item,
  * Add IP address from sas to id with length len to position pos. Also adjust pos to position after
  * added item.
  */
-void
+static void
 util_gen_id_add_sas(char *id, size_t len, size_t *pos, const struct sockaddr_storage *sas)
 {
 	void *addr_pointer;
@@ -156,7 +237,11 @@ util_get_time(void)
 {
 	struct timeval tv;
 
+#ifdef __CYGWIN__
+	util_cygwin_gettimeofday(&tv, NULL);
+#else
 	gettimeofday(&tv, NULL);
+#endif
 
 	return (tv);
 }
