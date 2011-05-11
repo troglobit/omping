@@ -257,8 +257,8 @@ util_ov_update(double *mean, double *m2, double x, uint64_t n)
 	double delta;
 
 	delta = x - *mean;
-        *mean = *mean + delta / n;
-        *m2 = *m2 + delta * (x - *mean);
+	*mean = *mean + delta / n;
+	*m2 = *m2 + delta * (x - *mean);
 }
 
 /*
@@ -267,7 +267,7 @@ util_ov_update(double *mean, double *m2, double x, uint64_t n)
 double
 util_ov_variance(double m2, uint64_t n)
 {
-    return ((n > 1) ? (m2 / (n - 1)) : 0.0);
+	return ((n > 1) ? (m2 / (n - 1)) : 0.0);
 }
 
 /*
@@ -276,11 +276,11 @@ util_ov_variance(double m2, uint64_t n)
 uint64_t
 util_tv_to_ms(struct timeval t1)
 {
-        uint64_t u64;
+	uint64_t u64;
 
-        u64 = t1.tv_usec / 1000 + t1.tv_sec * 1000;
+	u64 = t1.tv_usec / 1000 + t1.tv_sec * 1000;
 
-        return (u64);
+	return (u64);
 }
 
 /*
