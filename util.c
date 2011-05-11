@@ -284,6 +284,23 @@ util_tv_to_ms(struct timeval t1)
 }
 
 /*
+ * Return absolute difference between two unsigned 64-bit integers
+ */
+uint64_t
+util_u64_absdiff(uint64_t u1, uint64_t u2)
+{
+	uint64_t tmpu;
+
+	if (u1 > u2) {
+		tmpu = u1;
+		u1 = u2;
+		u2 = tmpu;
+	}
+
+	return (u2 - u1);
+}
+
+/*
  * Return sqrt of 64bit unsigned int n
  */
 uint32_t
