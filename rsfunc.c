@@ -131,7 +131,7 @@ rs_poll_timeout(int unicast_socket, int multicast_socket, int timeout, struct ti
  * either by SCM_TIMESTAMP directly from packet (if supported) or current get gettimeofday.
  * NULL can be passed as timestamp pointer.
  * Return number of received bytes, or -2 on EINTR, -3 on one of EHOSTUNREACH | ENETDOWN |
- * EHOSTDOWN, -4 if message is truncated, or -1 on different error.
+ * EHOSTDOWN | ECONNRESET, -4 if message is truncated, or -1 on different error.
  */
 ssize_t
 rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t msg_len,
@@ -168,8 +168,10 @@ rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t m
 			return (-2);
 		}
 
-		if (errno == EHOSTUNREACH || errno == EHOSTDOWN || errno == ENETDOWN) {
-			DEBUG2_PRINTF("recvmsg error - EHOSTUNREACH || EHOSTDOWN || ENETDOWN");
+		if (errno == EHOSTUNREACH || errno == EHOSTDOWN || errno == ENETDOWN ||
+		    errno == ECONNRESET) {
+			DEBUG2_PRINTF("recvmsg error - EHOSTUNREACH || EHOSTDOWN || ENETDOWN ||"
+			    " ECONNRESET");
 			return (-3);
 		}
 
