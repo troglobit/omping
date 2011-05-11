@@ -72,6 +72,9 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
     enum sf_transport_method transport_method, const struct ai_list *remote_addrs,
     int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size)
 {
+#ifdef __CYGWIN__
+	struct sockaddr_storage any_sas;
+#endif
 	int sock;
 
 	sock = sf_create_udp_socket(mcast_addr);
@@ -88,9 +91,17 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
+#ifdef __CYGWIN__
+	af_sa_to_any_addr(AF_CAST_SA(&any_sas), mcast_addr);
+
+	if (sf_bind_socket(AF_CAST_SA(&any_sas), sock) == -1) {
+		return (-1);
+	}
+#else
 	if (sf_bind_socket(mcast_addr, sock) == -1) {
 		return (-1);
 	}
+#endif
 
 	if (sf_set_socket_mcast_loop(mcast_addr, sock, allow_mcast_loop) == -1) {
 		return (-1);
