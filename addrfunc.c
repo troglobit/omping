@@ -258,6 +258,37 @@ af_copy_addr(const struct sockaddr_storage *a1, const struct sockaddr_storage *a
 }
 
 /*
+ * Fill in sockaddr sa pointer with in addr any for specified sa_family with specified port. port
+ * must be in local byte order.
+ */
+void
+af_create_any_addr(struct sockaddr *sa, int sa_family, uint16_t port)
+{
+	struct sockaddr_in sa_in;
+	struct sockaddr_in6 sa_in6;
+
+	switch (sa_family) {
+	case PF_INET:
+		memset(&sa_in, 0, sizeof(sa_in));
+		sa_in.sin_family = sa_family;
+		sa_in.sin_port = htons(port);
+		sa_in.sin_addr.s_addr = INADDR_ANY;
+		memcpy(sa, &sa_in, sizeof(sa_in));
+		break;
+	case PF_INET6:
+		memset(&sa_in6, 0, sizeof(sa_in6));
+		sa_in6.sin6_family = sa_family;
+		sa_in6.sin6_port = htons(port);
+		sa_in6.sin6_addr = in6addr_any;
+		memcpy(sa, &sa_in6, sizeof(sa_in6));
+		break;
+	default:
+		DEBUG_PRINTF("Unknown ai family %d", sa_family);
+		errx(1, "Unknown ai family %d", sa_family);
+	}
+}
+
+/*
  * Tries to find local address in ai_list with given ip_ver. Returns 0 on success, otherwise -1.
  * It also changes ifa_list (result of getaddrs), ifa_local (local addr) and ai_item (addrinfo item
  * which matches ifa_local).
@@ -514,6 +545,29 @@ af_sa_supported_ipv(const struct sockaddr *sa)
 	}
 
 	return (ipv);
+}
+
+/*
+ * Fill in sockaddr dest pointer with in addr any for family from src and port from src.
+ */
+void
+af_sa_to_any_addr(struct sockaddr *dest, const struct sockaddr *src)
+{
+	uint16_t port;
+
+	switch (src->sa_family) {
+	case PF_INET:
+		port = ntohs(((struct sockaddr_in *)src)->sin_port);
+		break;
+	case PF_INET6:
+		port = ntohs(((struct sockaddr_in6 *)src)->sin6_port);
+		break;
+	default:
+		DEBUG_PRINTF("Unknown ai family %d", src->sa_family);
+		errx(1, "Unknown ai family %d", src->sa_family);
+	}
+
+	af_create_any_addr(dest, src->sa_family, port);
 }
 
 /*
