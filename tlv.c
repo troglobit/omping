@@ -22,6 +22,10 @@
 
 #include <netinet/in.h>
 
+#ifdef __sun
+#include <alloca.h>
+#endif /* __sun */
+
 #include <err.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>

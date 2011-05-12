@@ -12,7 +12,7 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-CFLAGS+=-Wall -Wshadow -Wp,-D_FORTIFY_SOURCE=2 -g
+CFLAGS += -Wall -Wshadow -Wp,-D_FORTIFY_SOURCE=2 -g
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 MANDIR ?= $(PREFIX)/share/man
@@ -23,6 +23,10 @@ PROGRAM_NAME = omping
 VERSION_SH = `grep PROGRAM_VERSION omping.h | head -n 1 | sed 's/^.*\"\(.*\)\"/\1/'`
 
 all: $(PROGRAM_NAME)
+
+all-illumos:
+	CFLAGS="$(CFLAGS) -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D__EXTENSIONS__=1" \
+	    LDFLAGS="$(LDFLAGS) -lsocket -lnsl" $(MAKE) all
 
 $(PROGRAM_NAME): addrfunc.o cli.o gcra.o logging.o msg.o msgsend.o omping.o rhfunc.o rsfunc.o \
     sockfunc.o tlv.o util.o
