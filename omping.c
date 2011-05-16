@@ -96,15 +96,14 @@ static void	omping_instance_create(struct omping_instance *instance, int argc,
 
 static void	omping_instance_free(struct omping_instance *instance);
 
-static int	omping_poll_receive_loop(struct omping_instance *instance, int timeout_time,
-    uint64_t send_count_queries);
+static int	omping_poll_receive_loop(struct omping_instance *instance, int timeout_time);
 
 static int	omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp,
     int timeout_time);
 
 static int	omping_process_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct sockaddr_storage *from, uint8_t ttl, int ucast,
-    struct timeval rp_timestamp, uint64_t send_count_queries);
+    struct timeval rp_timestamp);
 
 static int	omping_process_answer_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
@@ -119,17 +118,15 @@ static int	omping_process_query_msg(struct omping_instance *instance, const char
     struct timeval rp_timestamp);
 
 static int	omping_process_response_msg(struct omping_instance *instance, const char *msg,
-    size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
-    uint64_t send_count_queries);
+    size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from);
 
 static int	omping_send_client_query(const struct omping_instance *instance,
-    struct rh_item *ri, int increase, uint64_t send_count_queries);
+    struct rh_item *ri, int increase);
 
-static int	omping_send_client_msgs(struct omping_instance *instance,
-    uint64_t send_count_queries);
+static int	omping_send_client_msgs(struct omping_instance *instance);
 
 static void	omping_send_receive_loop(struct omping_instance *instance, int timeout_time,
-    int final_stats, uint64_t send_count_queries);
+    int final_stats);
 
 static void	print_client_state(const char *host_name, int host_name_len,
     enum sf_transport_method transport_method, const struct sockaddr_storage *mcast_addr,
@@ -163,7 +160,7 @@ main(int argc, char *argv[])
 
 	register_signal_handlers();
 
-	omping_send_receive_loop(&instance, instance.timeout_time, 1, instance.send_count_queries);
+	omping_send_receive_loop(&instance, instance.timeout_time, 1);
 
 	if (!instance.single_addr && instance.wait_for_finish_time != 0) {
 		exit_requested = 0;
@@ -180,7 +177,7 @@ main(int argc, char *argv[])
 		VERBOSE_PRINTF("Waiting for %d ms to inform other nodes about instance exit",
 		    instance.wait_for_finish_time);
 
-		omping_send_receive_loop(&instance, wait_for_finish_time, 0, 0);
+		omping_send_receive_loop(&instance, wait_for_finish_time, 0);
 	}
 
 	omping_instance_free(&instance);
@@ -290,13 +287,11 @@ omping_instance_free(struct omping_instance *instance)
 
 /*
  * Loop for receiving messages for given time (instance->wait_time) and process them. Instance is
- * omping instance. timeout_time is maximum time to wait. send_count_queries is maximum number of
- * query messages to sent.
+ * omping instance. timeout_time is maximum time to wait.
  * Function returns 0 on success, or -2 on EINTR.
  */
 static int
-omping_poll_receive_loop(struct omping_instance *instance, int timeout_time,
-    uint64_t send_count_queries)
+omping_poll_receive_loop(struct omping_instance *instance, int timeout_time)
 {
 	char msg[MAX_MSG_SIZE];
 	struct sockaddr_storage from;
@@ -349,7 +344,7 @@ omping_poll_receive_loop(struct omping_instance *instance, int timeout_time,
 
 			if (receive_res > 0) {
 				res = omping_process_msg(instance, msg, receive_res, &from, ttl,
-				    (i == 0), rp_timestamp, send_count_queries);
+				    (i == 0), rp_timestamp);
 
 				if (res == -2) {
 					return (-2);
@@ -406,14 +401,12 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
  * Process received message. Instance is omping instance, msg is received message with msg_len
  * length, from is source of message. ttl is packet Time-To-Live or 0, if that information was not
  * available. ucast is boolean variable which determines whether packet is unicast (true != 0)
- * or multicast (false = 0). rp_timestamp is receiving time of packet. send_count_queries is
- * maximum number of query messages to sent.
+ * or multicast (false = 0). rp_timestamp is receiving time of packet.
  * Function returns 0 on success or -2 on EINTR.
  */
 static int
 omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
-    const struct sockaddr_storage *from, uint8_t ttl, int ucast, struct timeval rp_timestamp,
-    uint64_t send_count_queries)
+    const struct sockaddr_storage *from, uint8_t ttl, int ucast, struct timeval rp_timestamp)
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	struct msg_decoded msg_decoded;
@@ -446,7 +439,7 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 			if (!ucast)
 				goto error_unknown_mcast;
 			res = omping_process_response_msg(instance, msg, msg_len, &msg_decoded,
-			    from, send_count_queries);
+			    from);
 			break;
 		case MSG_TYPE_QUERY:
 			if (!ucast)
@@ -789,16 +782,14 @@ omping_process_query_msg(struct omping_instance *instance, const char *msg, size
 
 /*
  * Process response message. Instance is omping instance, msg is received message with msg_len
- * length, msg_decoded is decoded message and from is address of sender. send_count_queries is
- * maximum number of query messages to sent.
+ * length, msg_decoded is decoded message and from is address of sender.
  * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be
  * created (usually due to small message buffer), or -5 if message is invalid (not for us, message
  * without client_id, ...).
  */
 static int
 omping_process_response_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
-    const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
-    uint64_t send_count_queries)
+    const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from)
 {
 	struct rh_item *rh_item;
 	enum rh_client_state old_cstate;
@@ -897,8 +888,7 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		}
 	}
 
-	send_res = omping_send_client_query(instance, rh_item, (old_cstate == RH_CS_INITIAL),
-	    send_count_queries);
+	send_res = omping_send_client_query(instance, rh_item, (old_cstate == RH_CS_INITIAL));
 
 	return (send_res);
 }
@@ -906,13 +896,13 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 /*
  * Send client query message. instance is omping instance. ri is one item fro rh_list and it's
  * client to process. increase is boolean variable. If set, seq_num and no_sent packets are
- * increased. send_count_queries is maximum number of query messages to sent.
+ * increased.
  * Function return 0 on success, otherwise same error as rs_sendto or -4 if message cannot be
  * created (usually due to small message buffer)
  */
 static int
 omping_send_client_query(const struct omping_instance *instance, struct rh_item *ri,
-    int increase, uint64_t send_count_queries)
+    int increase)
 {
 	struct rh_item_ci *ci;
 	int send_res;
@@ -928,7 +918,8 @@ omping_send_client_query(const struct omping_instance *instance, struct rh_item 
 			return (0);
 		}
 
-		if (send_count_queries > 0 && ci->no_sent + 1 > send_count_queries) {
+		if (instance->send_count_queries > 0 &&
+		    ci->no_sent + 1 > instance->send_count_queries) {
 			ci->state = RH_CS_STOP;
 			DEBUG_PRINTF("Number of messages to be sent for %s exhausted. "
 			    "Moving to stop state.", ri->addr->host_name);
@@ -953,11 +944,10 @@ omping_send_client_query(const struct omping_instance *instance, struct rh_item 
 
 /*
  * Send client init or request messages to all of remote hosts. instance is omping instance.
- * send_count_queries is maximum number of query messages to sent.
  * Function return 0 on success, or -2 on EINTR.
  */
 static int
-omping_send_client_msgs(struct omping_instance *instance, uint64_t send_count_queries)
+omping_send_client_msgs(struct omping_instance *instance)
 {
 	struct rh_item *remote_host;
 	struct rh_item_ci *ci;
@@ -987,8 +977,7 @@ omping_send_client_msgs(struct omping_instance *instance, uint64_t send_count_qu
 			}
 			break;
 		case RH_CS_QUERY:
-			send_res = omping_send_client_query(instance, remote_host, 1,
-			    send_count_queries);
+			send_res = omping_send_client_query(instance, remote_host, 1);
 			break;
 		case RH_CS_STOP:
 			/*
@@ -1023,12 +1012,10 @@ omping_send_client_msgs(struct omping_instance *instance, uint64_t send_count_qu
  * Main loop of omping. It is used for receiving and sending messages. On the end, it prints final
  * statistics. instance is omping instance. timeout_time is maximum amount of time to keep loop
  * running (after this time, loop is ended). final_stats is boolean flag which determines if final
- * statistics should be displayed or not. send_count_queries is maximum number of query messages
- * to sent.
+ * statistics should be displayed or not.
  */
 static void
-omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int final_stats,
-    uint64_t send_count_queries)
+omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int final_stats)
 {
 	struct timeval start_time;
 	int clients_res;
@@ -1044,7 +1031,7 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 	loop_end = 0;
 
 	do {
-		clients_res = omping_send_client_msgs(instance, send_count_queries);
+		clients_res = omping_send_client_msgs(instance);
 		if (clients_res != 0 && clients_res != -2) {
 			err(3, "unknown value of clients_res %u", clients_res);
 			/* NOTREACHED */
@@ -1070,8 +1057,7 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 			receive_timeout = instance->wait_time;
 		}
 
-		poll_rec_res = omping_poll_receive_loop(instance, receive_timeout,
-		    send_count_queries);
+		poll_rec_res = omping_poll_receive_loop(instance, receive_timeout);
 
 		if (poll_rec_res != 0 && poll_rec_res != -2) {
 			err(3, "unknown value of poll_rec_res %u", poll_rec_res);
