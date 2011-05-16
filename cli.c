@@ -412,22 +412,6 @@ conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
 	}
 }
 
-static int
-af_is_addr_mcast(const struct sockaddr_storage *addr)
-{
-
-	switch (addr->ss_family) {
-	case AF_INET:
-		return IN_MULTICAST(ntohl(((struct sockaddr_in *)addr)->sin_addr.s_addr));
-		break;
-	case AF_INET6:
-		return IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6 *)addr)->sin6_addr);
-		break;
-	}
-
-	return (0);
-}
-
 /*
  * Convert mcast_addr_s to mcast_addr ai_item
  */
@@ -477,7 +461,7 @@ conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr
 	/*
 	 * Test if addr is really multicast
 	 */
-	if (!af_is_addr_mcast(&mcast_addr->sas)) {
+	if (!af_is_sa_mcast(AF_CAST_SA(&mcast_addr->sas))) {
 		errx(1, "Given address %s is not valid multicast address", mcast_addr_s);
 	}
 }

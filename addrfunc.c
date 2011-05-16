@@ -448,6 +448,30 @@ af_is_ai_in_list(const struct addrinfo *a1, const struct ai_list *ai_list)
 }
 
 /*
+ * Test if addr is multicast address.
+ * Return 0 if address is not multicast addres, otherwise != 0.
+ */
+int
+af_is_sa_mcast(const struct sockaddr *addr)
+{
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		return IN_MULTICAST(ntohl(((struct sockaddr_in *)addr)->sin_addr.s_addr));
+		break;
+	case AF_INET6:
+		return IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6 *)addr)->sin6_addr);
+		break;
+	default:
+		DEBUG_PRINTF("Unknown sockaddr family");
+                errx(1, "Unknown sockaddr family");
+		break;
+	}
+
+	return (0);
+}
+
+/*
  * Test if ifa is supported device.
  * Such device must:
  * - not be loopback

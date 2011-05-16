@@ -79,6 +79,7 @@ extern int		 af_find_local_ai(const struct ai_list *ai_list, int *ip_ver,
 
 extern struct addrinfo	*af_host_to_ai(const char *host_name, const char *port, int ip_ver);
 extern int		 af_is_ai_in_list(const struct addrinfo *a1, const struct ai_list *ai_list);
+extern int		 af_is_sa_mcast(const struct sockaddr *addr);
 extern int		 af_is_supported_local_ifa(const struct ifaddrs *ifa, int ip_ver);
 extern socklen_t	 af_sa_len(const struct sockaddr *sa);
 extern int		 af_sa_supported_ipv(const struct sockaddr *sa);
