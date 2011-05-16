@@ -82,6 +82,7 @@ extern int		 af_is_ai_in_list(const struct addrinfo *a1, const struct ai_list *a
 extern int		 af_is_sa_mcast(const struct sockaddr *addr);
 extern int		 af_is_supported_local_ifa(const struct ifaddrs *ifa, int ip_ver);
 extern socklen_t	 af_sa_len(const struct sockaddr *sa);
+extern uint16_t		 af_sa_port(const struct sockaddr *addr);
 extern int		 af_sa_supported_ipv(const struct sockaddr *sa);
 extern void		 af_sa_to_any_addr(struct sockaddr *dest, const struct sockaddr *src);
 extern char		*af_sa_to_str(const struct sockaddr *sa, char dst[INET6_ADDRSTRLEN]);

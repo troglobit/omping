@@ -549,6 +549,30 @@ af_sa_len(const struct sockaddr *sa)
 }
 
 /*
+ * Return port number in network order from addr
+ */
+uint16_t
+af_sa_port(const struct sockaddr *addr)
+{
+	uint16_t port;
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		port = (((struct sockaddr_in *)addr)->sin_port);
+		break;
+	case AF_INET6:
+		port = (((struct sockaddr_in6 *)addr)->sin6_port);
+		break;
+	default:
+		DEBUG_PRINTF("Internal program error");
+		err(1, "Internal program error");
+		break;
+	}
+
+	return (port);
+}
+
+/*
  * Return supported ip version. This function doesn't go deeply to structure. It can return 4 (ipv4
  * is supported), 6 (ipv6 is supported) or 0 (nether ipv4 or ipv6 are supported).
  */

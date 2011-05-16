@@ -44,7 +44,6 @@ static void	conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
 
 static void	conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr_s,
     const char *port_s);
-static uint16_t	conv_port(const struct sockaddr_storage *mcast_addr);
 static int	parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
     struct ai_list *ai_list);
 static int	return_ip_ver(int ip_ver, const char *mcast_addr, const char *port,
@@ -289,7 +288,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	/*
 	 * Assign port from mcast_addr
 	 */
-	*port = conv_port(&mcast_addr->sas);
+	*port = af_sa_port(AF_CAST_SA(&mcast_addr->sas));
 
 	/*
 	 * Change ai_list to struct of sockaddr_storage(s)
@@ -464,30 +463,6 @@ conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr
 	if (!af_is_sa_mcast(AF_CAST_SA(&mcast_addr->sas))) {
 		errx(1, "Given address %s is not valid multicast address", mcast_addr_s);
 	}
-}
-
-/*
- * Return port number in network order from mcast_addr
- */
-static uint16_t
-conv_port(const struct sockaddr_storage *mcast_addr)
-{
-	uint16_t port;
-
-	switch (mcast_addr->ss_family) {
-	case AF_INET:
-		port = (((struct sockaddr_in *)mcast_addr)->sin_port);
-		break;
-	case AF_INET6:
-		port = (((struct sockaddr_in6 *)mcast_addr)->sin6_port);
-		break;
-	default:
-		DEBUG_PRINTF("Internal program error");
-		err(1, "Internal program error");
-		break;
-	}
-
-	return (port);
 }
 
 /*
