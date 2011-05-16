@@ -67,14 +67,16 @@ static void	usage();
  * in seconds or 0, which is used for disabling duplicate detection. rate_limit_time is maximum
  * time between two received packets. sndbuf_size is size of socket buffer to allocate for sending
  * packets. rcvbuf_size is size of socket buffer to allocate for receiving packets. Both
- * sndbuf_size and rcvbuf_size are set to 0 if user doesn't supply option.
+ * sndbuf_size and rcvbuf_size are set to 0 if user doesn't supply option. send_count_queries is by
+ * default set to 0, but may be overwritten by user and it means that after sending that number of
+ * queries, client is put to stop state.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
     int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items,
-    int *rate_limit_time, int *sndbuf_size, int *rcvbuf_size)
+    int *rate_limit_time, int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -98,6 +100,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*quiet = 0;
 	*rate_limit_time = 0;
 	*rcvbuf_size = 0;
+	*send_count_queries = 0;
 	*sndbuf_size = 0;
 	*transport_method = SF_TM_ASM;
 	*timeout_time = 0;
@@ -110,7 +113,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CDFqVvi:M:m:p:R:r:S:T:t:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CDFqVvc:i:M:m:p:R:r:S:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -136,6 +139,22 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'v':
 			logging_set_verbose(logging_get_verbose() + 1);
+			break;
+		case 'c':
+			numd = strtod(optarg, &ep);
+			if (numd < 1 || *ep != '\0' || numd >= ((uint64_t)~0)) {
+				warnx("illegal number, -c argument -- %s", optarg);
+				goto error_usage_exit;
+			}
+			*send_count_queries= (uint64_t)numd;
+			break;
+		case 'i':
+			numd = strtod(optarg, &ep);
+			if (numd < 0 || *ep != '\0' || numd * 1000 > INT32_MAX) {
+				warnx("illegal number, -i argument -- %s", optarg);
+				goto error_usage_exit;
+			}
+			*wait_time = (int)(numd * 1000.0);
 			break;
 		case 'M':
 			if (strcmp(optarg, "asm") == 0) {
@@ -193,14 +212,6 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 				goto error_usage_exit;
 			}
 			*timeout_time = (int)(numd * 1000.0);
-			break;
-		case 'i':
-			numd = strtod(optarg, &ep);
-			if (numd < 0 || *ep != '\0' || numd * 1000 > INT32_MAX) {
-				warnx("illegal number, -i argument -- %s", optarg);
-				goto error_usage_exit;
-			}
-			*wait_time = (int)(numd * 1000.0);
 			break;
 		case 'w':
 			numd = strtod(optarg, &ep);
@@ -648,8 +659,8 @@ static void
 usage()
 {
 
-	printf("usage: %s [-46CDFqVv] [-i interval] [-M transport_method] [-m mcast_addr]\n",
+	printf("usage: %s [-46CDFqVv] [-c count] [-i interval] [-M transport_method]\n",
 	    PROGRAM_NAME);
-	printf("              [-p port] [-R rcvbuf] [-r rate_limit] [-S sndbuf] [-T timeout]\n");
-	printf("              [-t ttl] [-w wait_time] remote_addr...\n");
+	printf("              [-m mcast_addr] [-p port] [-R rcvbuf] [-r rate_limit] [-S sndbuf]\n");
+	printf("              [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n");
 }

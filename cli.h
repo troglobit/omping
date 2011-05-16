@@ -33,7 +33,7 @@ extern int	cli_parse(struct ai_list *ai_list, int argc, char * const argv[],
     enum sf_transport_method *transport_method, struct ai_item *mcast_addr,
     uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet, int *cont_stat,
     int *timeout_time, int *wait_for_finish_time, int *dup_buf_items, int *rate_limit_time,
-    int *sndbuf_size, int *rcvbuf_size);
+    int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries);
 
 #ifdef __cplusplus
 }

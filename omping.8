@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd May 06, 2011
+.Dd May 16, 2011
 .Dt OMPING 8
 .Os
 .
@@ -24,6 +24,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 46CDFqVv
+.Op Fl c Ar count
 .Op Fl i Ar interval
 .Op Fl M Ar transport_method
 .Op Fl m Ar mcast_addr
@@ -78,17 +79,22 @@ then only summary is displayed.
 Display version and quit.
 .It Fl v
 Set level of verbosity. Parameter can be used multiple times to achieve higher verbosity.
+.It Fl c Ar count
+Number of request packets to send to each target. After sending
+.Ar count
+query messages, given client is put to stop state and it is no longer sending query
+messages.
+.It Fl i Ar interval
+Wait
+.Ar interval
+seconds between sending each request packet. The default is to wait for one
+second between each packet.
 .It Fl M Ar transport_method
 Set transport method to use. This can be
 .Cm asm
 for Any-source Multicast and
 .Cm ssm
 for Source-specific Multicast.
-.It Fl i Ar interval
-Wait
-.Ar interval
-seconds between sending each request packet. The default is to wait for one
-second between each packet.
 .It Fl m Ar mcast_addr
 Multicast address to listen on for multicast answer messages. Default is 232.43.211.234 for IPv4
 and ff3e::4321:1234 for IPv6.
@@ -221,5 +227,16 @@ utility was written by
 .Sh BUGS
 .Bl -dash
 .It
-No count mode.
+Some OSes may not have support for receiving TTL from packet.
+.Nm
+then cannot provide distance information.
+.It
+Some OSes may not provide information about packet receive. Less precise actual time is then used.
+.It
+.Nm
+highly depends on precise
+.Xr poll 2
+and
+.Xr gettimeofday 3
+functions. If OS doesn't provide at least milliseconds precision, results may be incorrect.
 .El
