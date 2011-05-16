@@ -263,6 +263,9 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	 */
 	if (!wait_for_finish_time_set) {
 		*wait_for_finish_time = *wait_time * DEFAULT_WFF_TIME_MUL;
+		if (*wait_for_finish_time < DEFAULT_WAIT_TIME) {
+			*wait_for_finish_time = DEFAULT_WAIT_TIME;
+		}
 	}
 
 	if (*wait_time == 0) {
@@ -280,6 +283,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	if (!rate_limit_time_set) {
 		*rate_limit_time = *wait_time;
+
 	}
 
 	TAILQ_INIT(ai_list);

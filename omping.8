@@ -129,9 +129,9 @@ after
 .Nm
 is stopped (by sending SIGINT or timeout expire) it is moved to special state when no queries are
 made and server answer all queries by server response (stop message). This makes possible to give
-correct (unbiased) result of lost packets on other nodes. Default is 3 times interval. Also
-special value 0 can be used to not wait at all or -1 which means wait forever (this can be still
-terminated by sending SIGINT).
+correct (unbiased) result of lost packets on other nodes. Default is 3 times interval or 1 second,
+depending which one is larger. Also special value 0 can be used to not wait at all or -1 which
+means wait forever (this can be still terminated by sending SIGINT).
 .It Ar remote_addr
 List of addresses to test. One of them must be address of local internet interface. This
 local address is used for bind and listening on for unicast packets. It's also used to determine
