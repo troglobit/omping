@@ -72,8 +72,8 @@ util_cygwin_gettimeofday(struct timeval *tv, struct timezone *tz)
 	static LARGE_INTEGER perf_count_offset;
 	/* Actual pc */
 	static LARGE_INTEGER perf_count;
-	/* Miliseconds base time */
-	static uint64_t ms_base = 0;
+	/* Microsenconds base time */
+	static uint64_t us_base = 0;
 	/* Function was not called yet */
 	static int initialized = 0;
 	/* If not used pf, fallback to gettimeofday implementation */
@@ -82,10 +82,10 @@ util_cygwin_gettimeofday(struct timeval *tv, struct timezone *tz)
 	struct timeval tv2;
 	/* Diff between offset pc and actual pc */
 	int64_t perf_diff;
-	/* Actual time in miliseconds */
-	uint64_t ms;
-	/* Time in miliseconds returned by gettimeofday */
-	uint64_t ms_ref;
+	/* Actual time in microseconds */
+	uint64_t us;
+	/* Time in microseconds returned by gettimeofday */
+	uint64_t us_ref;
 
 	if (!initialized) {
 		initialized = 1;
@@ -93,7 +93,7 @@ util_cygwin_gettimeofday(struct timeval *tv, struct timezone *tz)
 		if (use_pf) {
 			QueryPerformanceCounter(&perf_count_offset);
 			gettimeofday(&tv2, tz);
-			ms_base = tv2.tv_sec * (uint64_t)1000000 + tv2.tv_usec;
+			us_base = tv2.tv_sec * (uint64_t)1000000 + tv2.tv_usec;
 		}
 	}
 
@@ -104,18 +104,18 @@ util_cygwin_gettimeofday(struct timeval *tv, struct timezone *tz)
 	}
 
 	perf_diff = perf_count.QuadPart - perf_count_offset.QuadPart;
-	ms = ((double)perf_diff / (double)freq.QuadPart) * 1000000.0 + ms_base;
+	us = ((double)perf_diff / (double)freq.QuadPart) * 1000000.0 + us_base;
 
 	gettimeofday(&tv2, tz);
-	ms_ref = tv2.tv_sec * (uint64_t)1000000 + tv2.tv_usec;
+	us_ref = tv2.tv_sec * (uint64_t)1000000 + tv2.tv_usec;
 
-	if (util_u64_absdiff(ms, ms_ref) > (uint64_t)1000000) {
-		ms_base = ms = ms_ref;
+	if (util_u64_absdiff(us, us_ref) > (uint64_t)1000000) {
+		us_base = us = us_ref;
 		perf_count_offset.QuadPart = perf_count.QuadPart;
 	}
 
-	tv->tv_sec = ms / (uint64_t)1000000;
-	tv->tv_usec = ms % (uint64_t)1000000;
+	tv->tv_sec = us / (uint64_t)1000000;
+	tv->tv_usec = us % (uint64_t)1000000;
 
 	return (0);
 }
