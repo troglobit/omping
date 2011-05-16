@@ -225,8 +225,8 @@ rs_receive_msg(int sock, struct sockaddr_storage *from_addr, char *msg, size_t m
 /*
  * Thin wrapper on top of sendto. sock is socket, msg is message with msg_size length to send and to
  * is address where to send message.
- * Return number of sent bytes or -2 on EINTR, -3 on one of EHOSTDOWN | ENETDOWN | EHOSTUNREACH or
- * -1 on some different error (sent != msg_size).
+ * Return number of sent bytes or -2 on EINTR, -3 on one of EHOSTDOWN | ENETDOWN | EHOSTUNREACH |
+ * ENOBUFS or -1 on some different error (sent != msg_size).
  */
 ssize_t
 rs_sendto(int sock, const char *msg, size_t msg_size, const struct sockaddr_storage *to)
@@ -241,8 +241,10 @@ rs_sendto(int sock, const char *msg, size_t msg_size, const struct sockaddr_stor
 			return (-2);
 		}
 
-		if (errno == EHOSTUNREACH || errno == EHOSTDOWN || errno == ENETDOWN) {
-			DEBUG2_PRINTF("sendto error - EHOSTUNREACH || EHOSTDOWN || ENETDOWN");
+		if (errno == EHOSTUNREACH || errno == EHOSTDOWN || errno == ENETDOWN ||
+		    errno == ENOBUFS) {
+			DEBUG2_PRINTF("sendto error - EHOSTUNREACH || EHOSTDOWN || ENETDOWN ||"
+			    "ENOBUFS");
 			return (-3);
 		}
 
