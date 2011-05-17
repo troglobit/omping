@@ -69,14 +69,17 @@ static void	usage();
  * packets. rcvbuf_size is size of socket buffer to allocate for receiving packets. Both
  * sndbuf_size and rcvbuf_size are set to 0 if user doesn't supply option. send_count_queries is by
  * default set to 0, but may be overwritten by user and it means that after sending that number of
- * queries, client is put to stop state.
+ * queries, client is put to stop state. auto_exit is boolean variable which is enabled by default
+ * and can be disabled by -E option. If auto_exit is enabled, loop will end if every client is in
+ * STOP state.
  */
 int
 cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
     struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
     int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items,
-    int *rate_limit_time, int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries)
+    int *rate_limit_time, int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries,
+    int *auto_exit)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -90,6 +93,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	int rate_limit_time_set;
 	int wait_for_finish_time_set;
 
+	*auto_exit = 1;
 	*ip_ver = 0;
 	*cont_stat = 0;
 	mcast_addr_s = NULL;
@@ -113,7 +117,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CDFqVvc:i:M:m:p:R:r:S:T:t:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CDEFqVvc:i:M:m:p:R:r:S:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -126,6 +130,9 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'D':
 			*dup_buf_items = 0;
+			break;
+		case 'E':
+			*auto_exit = 0;
 			break;
 		case 'F':
 			force++;
@@ -663,7 +670,7 @@ static void
 usage()
 {
 
-	printf("usage: %s [-46CDFqVv] [-c count] [-i interval] [-M transport_method]\n",
+	printf("usage: %s [-46CDEFqVv] [-c count] [-i interval] [-M transport_method]\n",
 	    PROGRAM_NAME);
 	printf("              [-m mcast_addr] [-p port] [-R rcvbuf] [-r rate_limit] [-S sndbuf]\n");
 	printf("              [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n");

@@ -56,6 +56,7 @@ struct omping_instance {
 	enum sf_transport_method transport_method;
 	char		*local_ifname;
 	uint64_t	send_count_queries;
+	int		auto_exit;
 	int		cont_stat;
 	int		dup_buf_items;
 	int		hn_max_len;
@@ -70,6 +71,7 @@ struct omping_instance {
 	int		ucast_socket;
 	int		wait_for_finish_time;
 	int		wait_time;
+	unsigned int	rh_no_active;
 	uint16_t	port;
 	uint8_t		ttl;
 };
@@ -90,6 +92,9 @@ static int display_stats_requested;
 static int	get_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received);
 
 static int	omping_check_msg_common(const struct msg_decoded *msg_decoded);
+
+static void	omping_client_move_to_stop(struct omping_instance *instance,
+    struct rh_item *ri, enum rh_client_stop_reason stop_reason);
 
 static void	omping_instance_create(struct omping_instance *instance, int argc,
     char *argv[]);
@@ -120,17 +125,18 @@ static int	omping_process_query_msg(struct omping_instance *instance, const char
 static int	omping_process_response_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from);
 
-static int	omping_send_client_query(const struct omping_instance *instance,
-    struct rh_item *ri, int increase);
+static int	omping_send_client_query(struct omping_instance *instance, struct rh_item *ri,
+    int increase);
 
 static int	omping_send_client_msgs(struct omping_instance *instance);
 
 static void	omping_send_receive_loop(struct omping_instance *instance, int timeout_time,
-    int final_stats);
+    int final_stats, int allow_auto_exit);
 
 static void	print_client_state(const char *host_name, int host_name_len,
     enum sf_transport_method transport_method, const struct sockaddr_storage *mcast_addr,
-    const struct sockaddr_storage *remote_addr, enum rh_client_state state);
+    const struct sockaddr_storage *remote_addr, enum rh_client_state state,
+    enum rh_client_stop_reason stop_reason);
 
 static void	print_final_stats(const struct rh_list *remote_hosts, int host_name_len);
 
@@ -160,7 +166,7 @@ main(int argc, char *argv[])
 
 	register_signal_handlers();
 
-	omping_send_receive_loop(&instance, instance.timeout_time, 1);
+	omping_send_receive_loop(&instance, instance.timeout_time, 1, 1);
 
 	if (!instance.single_addr && instance.wait_for_finish_time != 0) {
 		exit_requested = 0;
@@ -177,7 +183,7 @@ main(int argc, char *argv[])
 		VERBOSE_PRINTF("Waiting for %d ms to inform other nodes about instance exit",
 		    instance.wait_for_finish_time);
 
-		omping_send_receive_loop(&instance, wait_for_finish_time, 0);
+		omping_send_receive_loop(&instance, wait_for_finish_time, 0, 0);
 	}
 
 	omping_instance_free(&instance);
@@ -227,6 +233,24 @@ omping_check_msg_common(const struct msg_decoded *msg_decoded)
 }
 
 /*
+ * Move client to stop state. Instance is omping instance, ri is pointer to remote host item from
+ * remote hosts list and stop_reason is reason to stop.
+ */
+static void
+omping_client_move_to_stop(struct omping_instance *instance, struct rh_item *ri,
+    enum rh_client_stop_reason stop_reason)
+{
+	ri->client_info.state = RH_CS_STOP;
+	instance->rh_no_active--;
+
+	if (instance->quiet < 2) {
+		print_client_state(ri->addr->host_name, instance->hn_max_len,
+		    instance->transport_method, NULL, &ri->addr->sas,
+		    RH_CS_STOP, stop_reason);
+	}
+}
+
+/*
  * Create instance of omping. argc and argv are taken form main function. Result is stored in
  * instance parameter
  */
@@ -240,10 +264,13 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
 	    &instance->quiet, &instance->cont_stat, &instance->timeout_time,
 	    &instance->wait_for_finish_time, &instance->dup_buf_items, &instance->rate_limit_time,
-	    &instance->sndbuf_size, &instance->rcvbuf_size, &instance->send_count_queries);
+	    &instance->sndbuf_size, &instance->rcvbuf_size, &instance->send_count_queries,
+	    &instance->auto_exit);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs, instance->dup_buf_items,
 	    instance->rate_limit_time);
+
+	instance->rh_no_active = rh_list_length(&instance->remote_hosts);
 
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
@@ -832,13 +859,7 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 			util_gen_cid(rh_item->client_info.client_id, &instance->local_addr);
 		} else {
 			DEBUG_PRINTF("Client was not in query state. Put it to stop state");
-			rh_item->client_info.state = RH_CS_STOP;
-
-			if (instance->quiet < 2) {
-				print_client_state(rh_item->addr->host_name, instance->hn_max_len,
-				    instance->transport_method, NULL, &rh_item->addr->sas,
-				    RH_CS_STOP);
-			}
+			omping_client_move_to_stop(instance, rh_item, RH_CSR_SERVER);
 		}
 
 		return (-5);
@@ -884,7 +905,7 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		if (instance->quiet < 2) {
 			print_client_state(rh_item->addr->host_name, instance->hn_max_len,
 			    instance->transport_method, &instance->mcast_addr.sas,
-			    &rh_item->addr->sas, RH_CS_QUERY);
+			    &rh_item->addr->sas, RH_CS_QUERY, RH_CSR_NONE);
 		}
 	}
 
@@ -901,8 +922,7 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
  * created (usually due to small message buffer)
  */
 static int
-omping_send_client_query(const struct omping_instance *instance, struct rh_item *ri,
-    int increase)
+omping_send_client_query(struct omping_instance *instance, struct rh_item *ri, int increase)
 {
 	struct rh_item_ci *ci;
 	int send_res;
@@ -911,8 +931,8 @@ omping_send_client_query(const struct omping_instance *instance, struct rh_item 
 
 	if (increase) {
 		if (ci->no_sent + 1 == ((uint64_t)~0)) {
-			ci->state = RH_CS_STOP;
-			VERBOSE_PRINTF("Number of messages to be send by %s exhausted. "
+			omping_client_move_to_stop(instance, ri, RH_CSR_SEND_MAXIMUM);
+			DEBUG_PRINTF("Maximum number of sent messages for %s exhausted. "
 			    "Moving to stop state.", ri->addr->host_name);
 
 			return (0);
@@ -920,8 +940,8 @@ omping_send_client_query(const struct omping_instance *instance, struct rh_item 
 
 		if (instance->send_count_queries > 0 &&
 		    ci->no_sent + 1 > instance->send_count_queries) {
-			ci->state = RH_CS_STOP;
-			DEBUG_PRINTF("Number of messages to be sent for %s exhausted. "
+			omping_client_move_to_stop(instance, ri, RH_CSR_TO_SEND_EXHAUSTED);
+			DEBUG_PRINTF("Number of messages to be sent by %s exhausted. "
 			    "Moving to stop state.", ri->addr->host_name);
 
 			return (0);
@@ -967,7 +987,7 @@ omping_send_client_msgs(struct omping_instance *instance)
 				if (instance->quiet < 2) {
 					print_client_state(remote_host->addr->host_name,
 					    instance->hn_max_len, instance->transport_method, NULL,
-					    &remote_host->addr->sas, RH_CS_INITIAL);
+					    &remote_host->addr->sas, RH_CS_INITIAL, RH_CSR_NONE);
 				}
 
 				send_res = ms_init(instance->ucast_socket, &remote_host->addr->sas,
@@ -1012,10 +1032,12 @@ omping_send_client_msgs(struct omping_instance *instance)
  * Main loop of omping. It is used for receiving and sending messages. On the end, it prints final
  * statistics. instance is omping instance. timeout_time is maximum amount of time to keep loop
  * running (after this time, loop is ended). final_stats is boolean flag which determines if final
- * statistics should be displayed or not.
+ * statistics should be displayed or not. allow_auto_exit is boolean which if set, allows auto exit
+ * if every client is in STOP state.
  */
 static void
-omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int final_stats)
+omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int final_stats,
+    int allow_auto_exit)
 {
 	struct timeval start_time;
 	int clients_res;
@@ -1072,6 +1094,10 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 		    util_time_absdiff(start_time, util_get_time()) >= timeout_time) {
 			loop_end = 1;
 		}
+
+		if (allow_auto_exit && instance->auto_exit && instance->rh_no_active == 0) {
+			loop_end = 1;
+		}
 	} while (!loop_end);
 
 	if (final_stats) {
@@ -1087,7 +1113,8 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 static void
 print_client_state(const char *host_name, int host_name_len,
     enum sf_transport_method transport_method, const struct sockaddr_storage *mcast_addr,
-    const struct sockaddr_storage *remote_addr, enum rh_client_state state)
+    const struct sockaddr_storage *remote_addr, enum rh_client_state state,
+    enum rh_client_stop_reason stop_reason)
 {
 	char mcast_addr_str[INET6_ADDRSTRLEN];
 	char rh_addr_str[INET6_ADDRSTRLEN];
@@ -1120,7 +1147,21 @@ print_client_state(const char *host_name, int host_name_len,
 		}
 		break;
 	case RH_CS_STOP:
-		printf("server told us to stop");
+		switch (stop_reason) {
+		case RH_CSR_NONE:
+			DEBUG_PRINTF("internal program error.");
+			errx(1, "Internal program error");
+			break;
+		case RH_CSR_SERVER:
+			printf("server told us to stop");
+			break;
+		case RH_CSR_SEND_MAXIMUM:
+			printf("maximum number of query messages exhausted");
+			break;
+		case RH_CSR_TO_SEND_EXHAUSTED:
+			printf("given amount of query messages was sent");
+			break;
+		}
 		break;
 	}
 	printf("\n");

@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd May 16, 2011
+.Dd May 17, 2011
 .Dt OMPING 8
 .Os
 .
@@ -23,7 +23,7 @@
 .Nd test IP multicast
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46CDFqVv
+.Op Fl 46CDEFqVv
 .Op Fl c Ar count
 .Op Fl i Ar interval
 .Op Fl M Ar transport_method
@@ -69,6 +69,13 @@ Force usage of IPv6.
 Display continuous statistics for every reply message.
 .It Fl D
 Disable packet duplicate detection. Option is default for interval 0.
+.It Fl E
+Default behaviour when every client is in stop state is to exit. This may happen if all server sends
+stop message or if
+.Ar count
+query messages was sent. This option changes default behaviour and
+.Nm
+doesn't quit automatically.
 .It Fl F
 Allow entering of arguments which are not allowed or not recommended by the specification. This is
 typically the interval parameter. This option may be used multiple times.

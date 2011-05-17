@@ -49,6 +49,13 @@ enum rh_server_state {
 	RH_SS_FINISHING,
 };
 
+enum rh_client_stop_reason {
+	RH_CSR_NONE,
+	RH_CSR_SERVER,
+	RH_CSR_TO_SEND_EXHAUSTED,
+	RH_CSR_SEND_MAXIMUM,
+};
+
 /*
  * Remote host info item, client info part
  */
