@@ -112,6 +112,8 @@ extern void		 rh_list_gen_cid(struct rh_list *rh_list,
 
 extern int		 rh_list_hn_max_len(struct rh_list *rh_list);
 
+extern unsigned int	 rh_list_length(const struct rh_list *rh_list);
+
 extern void		 rh_list_put_to_finish_state(struct rh_list *rh_list);
 
 #ifdef __cplusplus

@@ -185,6 +185,24 @@ rh_list_hn_max_len(struct rh_list *rh_list)
 }
 
 /*
+ * Return number of items in rh_list.
+ */
+unsigned int
+rh_list_length(const struct rh_list *rh_list)
+{
+	struct rh_item *rh_item;
+	unsigned int res;
+
+	res = 0;
+
+	TAILQ_FOREACH(rh_item, rh_list, entries) {
+		res++;
+	}
+
+	return (res);
+}
+
+/*
  * Move all items in rh_list to finish state. This means, that server state is put to
  * RH_SS_FINISHING and client state is moved to RH_CS_STOP
  */
