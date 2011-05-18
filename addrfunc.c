@@ -289,13 +289,15 @@ af_create_any_addr(struct sockaddr *sa, int sa_family, uint16_t port)
 }
 
 /*
- * Tries to find local address in ai_list with given ip_ver. Returns 0 on success, otherwise -1.
+ * Tries to find local address in ai_list with given ip_ver. if_flags may be set to bit mask with
+ * IFF_MULTICAST and/or IFF_BROADCAST and only network interface with that flags will be accepted.
+ * Returns 0 on success, otherwise -1.
  * It also changes ifa_list (result of getaddrs), ifa_local (local addr) and ai_item (addrinfo item
  * which matches ifa_local).
  */
 int
 af_find_local_ai(const struct ai_list *ai_list, int *ip_ver, struct ifaddrs **ifa_list,
-    struct ifaddrs **ifa_local, struct ai_item **ai_item)
+    struct ifaddrs **ifa_local, struct ai_item **ai_item, unsigned int if_flags)
 {
 	struct addrinfo *ai_i;
 	struct ai_item *aip;
@@ -333,7 +335,7 @@ af_find_local_ai(const struct ai_list *ai_list, int *ip_ver, struct ifaddrs **if
 				    sa_str2);
 
 				if (af_sockaddr_eq(ifa_i->ifa_addr, ai_i->ai_addr)) {
-					res = af_is_supported_local_ifa(ifa_i, *ip_ver);
+					res = af_is_supported_local_ifa(ifa_i, *ip_ver, if_flags);
 
 					if (res == 1 || res == 2) {
 						if (*ifa_local != NULL && ipv4_fallback == 0)
@@ -476,14 +478,15 @@ af_is_sa_mcast(const struct sockaddr *addr)
  * Such device must:
  * - not be loopback
  * - be up
- * - support multicast
+ * - support for if_flags (multicast/broadcast)
  * - support given ip_ver
+ * if_flags may be set to bit mask with IFF_MULTICAST and/or IFF_BROADCAST.
  * Function returns 0, if device doesn't fulfill requirements. 1, if device supports all
  * requirements and 2, if device support requirements and ip_ver is set to 0 but device supports
  * ipv4.
  */
 int
-af_is_supported_local_ifa(const struct ifaddrs *ifa, int ip_ver)
+af_is_supported_local_ifa(const struct ifaddrs *ifa, int ip_ver, unsigned int if_flags)
 {
 	char ai_s[LOGGING_SA_TO_STR_LEN];
 
@@ -501,10 +504,21 @@ af_is_supported_local_ifa(const struct ifaddrs *ifa, int ip_ver)
 		return (0);
 	}
 
-	if (!(ifa->ifa_flags & IFF_MULTICAST)) {
-		DEBUG2_PRINTF("%s with addr %s doesn't support mcast", ifa->ifa_name, ai_s);
+	if (if_flags & IFF_MULTICAST) {
+		if (!(ifa->ifa_flags & IFF_MULTICAST)) {
+			DEBUG2_PRINTF("%s with addr %s doesn't support mcast", ifa->ifa_name, ai_s);
 
-		return (0);
+			return (0);
+		}
+	}
+
+	if (if_flags & IFF_BROADCAST) {
+		if (!(ifa->ifa_flags & IFF_BROADCAST)) {
+			DEBUG2_PRINTF("%s with addr %s doesn't support broadcast", ifa->ifa_name,
+			    ai_s);
+
+			return (0);
+		}
 	}
 
 	if (ip_ver != 0 && af_sa_supported_ipv(ifa->ifa_addr) != ip_ver) {

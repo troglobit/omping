@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd May 17, 2011
+.Dd May 18, 2011
 .Dt OMPING 8
 .Os
 .
@@ -40,8 +40,8 @@
 The
 .Nm
 is program which uses User Datagram Protocol to determine if computer is able to send
-and/or receive IP Unicast and Multicast packets from the network. It's designed to be used in very
-similar way as
+and/or receive IP unicast and multicast or Broadcast packets from the network. It's designed to be
+used in very similar way as
 .Xr ping 8
 and also has some features of the
 .Xr fping 8
@@ -58,7 +58,7 @@ another instance of
 .Nm
 sends the reply. This mean that
 .Nm
-must be running on all computers to test sending/receiving IP Multicast.
+must be running on all computers to test sending/receiving IP multicast/broadcast.
 Its arguments are as follows:
 .Bl -tag -width Ds
 .It Fl 4
@@ -99,14 +99,17 @@ second between each packet.
 .It Fl M Ar transport_method
 Set transport method to use. This can be
 .Cm asm
-for Any-source Multicast and
+for Any-source Multicast,
 .Cm ssm
-for Source-specific Multicast.
+for Source-specific Multicast and
+.Cm ipbc
+for IP Broadcast.
 .It Fl m Ar mcast_addr
-Multicast address to listen on for multicast answer messages. Default is 232.43.211.234 for IPv4
-and ff3e::4321:1234 for IPv6.
+Multicast or broadcast address to listen on for multicast/broadcast answer messages.
+Default is 232.43.211.234 for IPv4 and ff3e::4321:1234 for IPv6 multicast, or broadcast address of
+local interface for Broadcast.
 .It Fl p Ar port
-Port to bind and listen on for both unicast and multicast messages. Default is 4321.
+Port to bind and listen on for both unicast and multicast/broadcast messages. Default is 4321.
 .It Fl R Ar rcvbuf
 Set socket rcvbuf. Minimum value for this option is 2048. If not specified, rcvbuf is not changed
 and default OS provided value is used.
@@ -142,7 +145,7 @@ means wait forever (this can be still terminated by sending SIGINT).
 .It Ar remote_addr
 List of addresses to test. One of them must be address of local internet interface. This
 local address is used for bind and listening on for unicast packets. It's also used to determine
-which interface should be used for sending multicast replies.
+which interface should be used for sending multicast/broadcast replies.
 .El
 .Pp
 Program is normally terminated by SIGINT. After signal receive summary is displayed. You can also
@@ -157,8 +160,8 @@ is correctly configured. This mode is available by entering only local IP addres
 .Ex -std
 .Sh EXAMPLES
 The following commands and output is a typical way how to find-out and solve network problems
-using omping. In this situation, we have 3 computers named node-01, node-02 and node-03 with IP addresses
-192.168.1.101 - 192.168.1.103. Let's run the following command on all of them.
+using omping. In this situation, we have 3 computers named node-01, node-02 and node-03 with IP
+addresses 192.168.1.101 - 192.168.1.103. Let's run the following command on all of them.
 .Pp
 .Dl $ omping node-01 node-02 node-03
 .Pp
@@ -196,9 +199,9 @@ is a multicast message. It means, that multicast is probably well configured.
 The 7th and 8th lines are same as previous two one but for node-03.
 .Pp
 If the node is able to receive unicast packets, but never multicast, it means that multicast
-configuration is incorrect. It's recommended to turn off your firewall. If multicast packets start to
-arrive, great. If not, the problem is hidden in the switches/routers between the nodes. Contact your
-system administrator to allow multicast traffic on the switch or router.
+configuration is incorrect. It's recommended to turn off your firewall. If multicast packets start
+to arrive, great. If not, the problem is hidden in the switches/routers between the nodes. Contact
+your system administrator to allow multicast traffic on the switch or router.
 .Pp
 .Nm
 is terminated by SIGINT signal (CTRL-c). Summary statistics are shown
@@ -210,8 +213,8 @@ is terminated by SIGINT signal (CTRL-c). Summary statistics are shown
 .Pp
 Last line has additional information (seq>=2 %0) which means, that after receiving first multicast
 packet with seq number 2, no other multicast packet was lost. Because creating multicast tree is
-time consuming, it's pretty normal to lost first few multicast packets. rcv field can also be formatted
-like
+time consuming, it's pretty normal to lost first few multicast packets. rcv field can also be
+formatted like
 .Pp
 .Dl node-01 :   unicast, xmt/rcv/%loss = 3/3+1/0%, min/avg/max/std-dev = 0.294/0.299/0.305/0.006
 .Pp

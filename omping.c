@@ -107,12 +107,12 @@ static int	omping_poll_timeout(struct omping_instance *instance, struct timeval 
     int timeout_time);
 
 static int	omping_process_msg(struct omping_instance *instance, const char *msg,
-    size_t msg_len, const struct sockaddr_storage *from, uint8_t ttl, int ucast,
+    size_t msg_len, const struct sockaddr_storage *from, uint8_t ttl, enum sf_cast_type cast_type,
     struct timeval rp_timestamp);
 
 static int	omping_process_answer_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
-    uint8_t ttl, int ucast, struct timeval rp_timestamp);
+    uint8_t ttl, enum sf_cast_type cast_type, struct timeval rp_timestamp);
 
 static int	omping_process_init_msg(struct omping_instance *instance, const char *msg,
     size_t msg_len, const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from,
@@ -138,11 +138,12 @@ static void	print_client_state(const char *host_name, int host_name_len,
     const struct sockaddr_storage *remote_addr, enum rh_client_state state,
     enum rh_client_stop_reason stop_reason);
 
-static void	print_final_stats(const struct rh_list *remote_hosts, int host_name_len);
+static void	print_final_stats(const struct rh_list *remote_hosts, int host_name_len,
+    enum sf_transport_method transport_method);
 
 static void	print_packet_stats(const char *host_name, int host_name_len, uint32_t seq,
     int is_dup, size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt,
-    double avg_rtt, int loss, int ucast, int cont_stat);
+    double avg_rtt, int loss, enum sf_cast_type cast_type, int cont_stat);
 
 static void	siginfo_handler(int sig);
 static void	sigint_handler(int sig);
@@ -324,6 +325,7 @@ omping_poll_receive_loop(struct omping_instance *instance, int timeout_time)
 	struct sockaddr_storage from;
 	struct timeval old_tstamp;
 	struct timeval rp_timestamp;
+	enum sf_cast_type cast_type;
 	int i;
 	int poll_res;
 	int receive_res;
@@ -370,8 +372,26 @@ omping_poll_receive_loop(struct omping_instance *instance, int timeout_time)
 			}
 
 			if (receive_res > 0) {
+				if (i == 0) {
+					cast_type = SF_CT_UNI;
+				} else {
+					switch (instance->transport_method) {
+					case SF_TM_ASM:
+					case SF_TM_SSM:
+						cast_type = SF_CT_MULTI;
+						break;
+					case SF_TM_IPBC:
+						cast_type = SF_CT_BROAD;
+						break;
+					default:
+						DEBUG_PRINTF("Internal error - unknown tm");
+						errx(1, "Internal error - unknown tm");
+						/* NOTREACHED */
+					}
+				}
+
 				res = omping_process_msg(instance, msg, receive_res, &from, ttl,
-				    (i == 0), rp_timestamp);
+				    cast_type, rp_timestamp);
 
 				if (res == -2) {
 					return (-2);
@@ -406,8 +426,10 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
 		case -2:
 			if (display_stats_requested) {
 				display_stats_requested = 0;
-				print_final_stats(&instance->remote_hosts,
-				    instance->hn_max_len);
+
+				print_final_stats(&instance->remote_hosts, instance->hn_max_len,
+				    instance->transport_method);
+
 				printf("\n");
 
 				if (!exit_requested) {
@@ -427,13 +449,14 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
 /*
  * Process received message. Instance is omping instance, msg is received message with msg_len
  * length, from is source of message. ttl is packet Time-To-Live or 0, if that information was not
- * available. ucast is boolean variable which determines whether packet is unicast (true != 0)
- * or multicast (false = 0). rp_timestamp is receiving time of packet.
+ * available. cast_type is type of packet received (unicast/multicast/broadcast). rp_timestamp
+ * is receiving time of packet.
  * Function returns 0 on success or -2 on EINTR.
  */
 static int
 omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
-    const struct sockaddr_storage *from, uint8_t ttl, int ucast, struct timeval rp_timestamp)
+    const struct sockaddr_storage *from, uint8_t ttl, enum sf_cast_type cast_type,
+    struct timeval rp_timestamp)
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	struct msg_decoded msg_decoded;
@@ -445,7 +468,7 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 
 	msg_decode(msg, msg_len, &msg_decoded);
 
-	cast_str = (ucast ? "uni" : "multi");
+	cast_str = sf_cast_type_to_str(cast_type);
 
 	af_sa_to_str((struct sockaddr *)from, addr_str);
 	DEBUG_PRINTF("Received %scast message from %s type %c (0x%X), len %zu", cast_str, addr_str,
@@ -457,26 +480,26 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 	} else {
 		switch (msg_decoded.msg_type) {
 		case MSG_TYPE_INIT:
-			if (!ucast)
+			if (cast_type != SF_CT_UNI)
 				goto error_unknown_mcast;
 			res = omping_process_init_msg(instance, msg, msg_len, &msg_decoded, from,
 			    rp_timestamp);
 			break;
 		case MSG_TYPE_RESPONSE:
-			if (!ucast)
+			if (cast_type != SF_CT_UNI)
 				goto error_unknown_mcast;
 			res = omping_process_response_msg(instance, msg, msg_len, &msg_decoded,
 			    from);
 			break;
 		case MSG_TYPE_QUERY:
-			if (!ucast)
+			if (cast_type != SF_CT_UNI)
 				goto error_unknown_mcast;
 			res = omping_process_query_msg(instance, msg, msg_len, &msg_decoded, from,
 			    rp_timestamp);
 			break;
 		case MSG_TYPE_ANSWER:
 			res = omping_process_answer_msg(instance, msg, msg_len, &msg_decoded, from,
-			    ttl, ucast, rp_timestamp);
+			    ttl, cast_type, rp_timestamp);
 			break;
 		}
 	}
@@ -515,17 +538,16 @@ error_unknown_mcast:
 
 /*
  * Function to test if packet is duplicate. ci is client item information, seq is sequential number
- * and ucast is boolean variable, which if set means, that packet is unicast, otherwise it's
- * multicast packet.
+ * and cast_type is type of packet received (unicast/multicast/broadcast).
  * Function returns 0 if packet is not duplicate, otherwise 1.
  */
 static int
-is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, int ucast)
+is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, enum sf_cast_type cast_type)
 {
 	int cast_index;
 	int res;
 
-	cast_index = (ucast ? 0 : 1);
+	cast_index = (cast_type == SF_CT_UNI ? 0 : 1);
 
 	if (ci->dup_buffer[cast_index][seq % ci->dup_buf_items] == seq) {
 		res = 1;
@@ -541,9 +563,8 @@ is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, int ucast)
 /*
  * Process answer message. Instance is omping instance, msg is received message with msg_len length,
  * msg_decoded is decoded message, from is address of sender. ttl is Time-To-Live of packet. If ttl
- * is 0, it means that it was not possible to find out ttl. ucast is boolean variable which
- * determines whether packet is unicast (true != 0) or multicast (false = 0). rp_timestamp is
- * receiving time of packet.
+ * is 0, it means that it was not possible to find out ttl. cast_type is type of packet received
+ * (unicast/multicast/broadcast). rp_timestamp is receiving time of packet.
  * Function returns 0 on sucess, otherwise same error as rs_sendto or -4 if message cannot be
  * created (usually due to small message buffer), or -5 if message is invalid (not for us, message
  * without client_id, ...).
@@ -551,7 +572,7 @@ is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, int ucast)
 static int
 omping_process_answer_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
     const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from, uint8_t ttl,
-    int ucast, struct timeval rp_timestamp)
+    enum sf_cast_type cast_type, struct timeval rp_timestamp)
 {
 	struct rh_item *rh_item;
 	double avg_rtt;
@@ -609,11 +630,11 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	}
 
 	avg_rtt = 0;
-	cast_index = (ucast ? 0 : 1);
+	cast_index = (cast_type == SF_CT_UNI ? 0 : 1);
 	is_dup = 0;
 
 	if (instance->dup_buf_items > 0) {
-		is_dup = is_dup_packet(&rh_item->client_info, msg_decoded->seq_num, ucast);
+		is_dup = is_dup_packet(&rh_item->client_info, msg_decoded->seq_num, cast_type);
 	}
 
 	if (is_dup) {
@@ -630,7 +651,8 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 		received = ++rh_item->client_info.no_received[cast_index];
 
-		if (!ucast && first_packet && !rh_item->client_info.seq_num_overflow) {
+		if (cast_type != SF_CT_UNI && first_packet &&
+		    !rh_item->client_info.seq_num_overflow) {
 			rh_item->client_info.first_mcast_seq = msg_decoded->seq_num;
 		}
 
@@ -656,7 +678,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	if (instance->cont_stat) {
 		sent = rh_item->client_info.no_sent;
 
-		if (!ucast && rh_item->client_info.first_mcast_seq > 0) {
+		if (cast_type != SF_CT_UNI && rh_item->client_info.first_mcast_seq > 0) {
 			sent = sent - rh_item->client_info.first_mcast_seq + 1;
 		}
 		loss = get_packet_loss_percent(sent, received);
@@ -668,7 +690,7 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	if (instance->quiet == 0) {
 		print_packet_stats(rh_item->addr->host_name, instance->hn_max_len,
 		    msg_decoded->seq_num, is_dup, msg_len, dist_set, dist, rtt_set,
-		    rtt / UTIL_NSINMS, avg_rtt, loss, ucast, instance->cont_stat);
+		    rtt / UTIL_NSINMS, avg_rtt, loss, cast_type, instance->cont_stat);
 	}
 
 	return (0);
@@ -1101,7 +1123,8 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 	} while (!loop_end);
 
 	if (final_stats) {
-		print_final_stats(&instance->remote_hosts, instance->hn_max_len);
+		print_final_stats(&instance->remote_hosts, instance->hn_max_len,
+		    instance->transport_method);
 	}
 }
 
@@ -1144,6 +1167,9 @@ print_client_state(const char *host_name, int host_name_len,
 		case SF_TM_SSM:
 			printf("joined (S,G) = (%s, %s), pinging", rh_addr_str, mcast_addr_str);
 			break;
+		case SF_TM_IPBC:
+			printf("joined (S,G) = (*, %s), pinging", mcast_addr_str);
+			break;
 		}
 		break;
 	case RH_CS_STOP:
@@ -1169,14 +1195,17 @@ print_client_state(const char *host_name, int host_name_len,
 
 /*
  * Print final statistics. remote_hosts is list with all remote hosts and host_name_len is maximal
- * length of host name in list.
+ * length of host name in list. transport_method is transport method (SF_TM_ASM/SSM/IPBC) from
+ * omping instance.
  */
 static void
-print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
+print_final_stats(const struct rh_list *remote_hosts, int host_name_len,
+    enum sf_transport_method transport_method)
 {
 	const char *cast_str;
 	struct rh_item *rh_item;
 	struct rh_item_ci *ci;
+	enum sf_cast_type cast_type;
 	double avg_rtt;
 	int i;
 	int loss;
@@ -1190,7 +1219,25 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
 
 	TAILQ_FOREACH(rh_item, remote_hosts, entries) {
 		for (i = 0; i < 2; i++) {
-			cast_str = (i == 0 ? "uni" : "multi");
+			if (i == 0) {
+				cast_type = SF_CT_UNI;
+			} else {
+				switch (transport_method) {
+				case SF_TM_ASM:
+				case SF_TM_SSM:
+					cast_type = SF_CT_MULTI;
+					break;
+				case SF_TM_IPBC:
+					cast_type = SF_CT_BROAD;
+					break;
+				default:
+					DEBUG_PRINTF("Internal error - unknown transport method");
+					errx(1, "Internal error - unknown transport method");
+					/* NOTREACHED */
+				}
+			}
+
+			cast_str = sf_cast_type_to_str(cast_type);
 			ci = &rh_item->client_info;
 
 			received = ci->no_received[i];
@@ -1245,18 +1292,18 @@ print_final_stats(const struct rh_list *remote_hosts, int host_name_len)
  * msg_len is length of message, dist_set is boolean variable with information if dist is set or
  * not. dist is distance of packet (how TTL was changed). rtt_set is boolean variable with
  * information if rtt (current round trip time) and avg_rtt (average round trip time) is set and
- * computed or not. loss is number of lost packets. ucast is boolean variable saying if packet was
- * unicast (true) or multicast (false). cont_stat is boolean variable saying, if to display
+ * computed or not. loss is number of lost packets. cast_type is type of packet received
+ * (unicast/multicast/broadcast). cont_stat is boolean variable saying, if to display
  * continuous statistic or not.
  */
 static void
 print_packet_stats(const char *host_name, int host_name_len, uint32_t seq, int is_dup,
     size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt, double avg_rtt, int loss,
-    int ucast, int cont_stat)
+    enum sf_cast_type cast_type, int cont_stat)
 {
 	const char *cast_str;
 
-	cast_str = (ucast ? "uni" : "multi");
+	cast_str = sf_cast_type_to_str(cast_type);
 
 	printf("%-*s : ", host_name_len, host_name);
 	printf("%5scast, ", cast_str);

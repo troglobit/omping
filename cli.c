@@ -42,12 +42,18 @@ static void	conv_list_addrs(struct ai_list *ai_list, int ip_ver);
 static void	conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
     const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr);
 
+static int	conv_params_ipbc(struct ai_item *ipbc_addr, const char *ipbc_addr_s,
+    const char *port_s, const struct ifaddrs *ifa_local);
+
 static void	conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr_s,
     const char *port_s);
+
 static int	parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
     struct ai_list *ai_list);
+
 static int	return_ip_ver(int ip_ver, const char *mcast_addr, const char *port,
     struct ai_list *ai_list);
+
 static void	show_version(void);
 static void	usage();
 
@@ -90,12 +96,14 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	int ch;
 	int force;
 	int num;
+	int res;
 	int rate_limit_time_set;
 	int wait_for_finish_time_set;
+	unsigned int ifa_flags;
 
 	*auto_exit = 1;
-	*ip_ver = 0;
 	*cont_stat = 0;
+	*ip_ver = 0;
 	mcast_addr_s = NULL;
 	*local_ifname = NULL;
 	*wait_time = DEFAULT_WAIT_TIME;
@@ -110,8 +118,10 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	*timeout_time = 0;
 	*wait_for_finish_time = 0;
 	*dup_buf_items = MIN_DUP_BUF_ITEMS;
-	port_s = DEFAULT_PORT_S;
+
 	force = 0;
+	ifa_flags = IFF_MULTICAST;
+	port_s = DEFAULT_PORT_S;
 	rate_limit_time_set = 0;
 	wait_for_finish_time_set = 0;
 
@@ -166,8 +176,13 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 		case 'M':
 			if (strcmp(optarg, "asm") == 0) {
 				*transport_method = SF_TM_ASM;
+				ifa_flags = IFF_MULTICAST;
 			} else if (strcmp(optarg, "ssm") == 0 && sf_is_ssm_supported()) {
 				*transport_method = SF_TM_SSM;
+				ifa_flags = IFF_MULTICAST;
+			} else if (strcmp(optarg, "ipbc") == 0 && sf_is_ipbc_supported()) {
+				*transport_method = SF_TM_IPBC;
+				ifa_flags = IFF_BROADCAST;
 			} else {
 				warnx("illegal parameter, -M argument -- %s", optarg);
 				goto error_usage_exit;
@@ -265,6 +280,16 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 		}
 	}
 
+	if (*transport_method == SF_TM_IPBC) {
+		if (*ip_ver == 6) {
+			warnx("illegal transport method, -M argument ipbc is mutually exclusive "
+			    "with -6 option");
+			goto error_usage_exit;
+		}
+
+		*ip_ver = 4;
+	}
+
 	/*
 	 * Computed params
 	 */
@@ -298,19 +323,9 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	parse_remote_addrs(argc, argv, port_s, *ip_ver, ai_list);
 	*ip_ver = return_ip_ver(*ip_ver, mcast_addr_s, port_s, ai_list);
 
-	if (af_find_local_ai(ai_list, ip_ver, &ifa_list, &ifa_local, &ai_item) < 0) {
+	if (af_find_local_ai(ai_list, ip_ver, &ifa_list, &ifa_local, &ai_item, ifa_flags) < 0) {
 		errx(1, "Can't find local address in arguments");
 	}
-
-	/*
-	 * First, we convert mcast addr to something useful
-	 */
-	conv_params_mcast(*ip_ver, mcast_addr, mcast_addr_s, port_s);
-
-	/*
-	 * Assign port from mcast_addr
-	 */
-	*port = af_sa_port(AF_CAST_SA(&mcast_addr->sas));
 
 	/*
 	 * Change ai_list to struct of sockaddr_storage(s)
@@ -329,6 +344,32 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	if (*local_ifname == NULL) {
 		errx(1, "Can't alloc memory");
 	}
+
+	switch (*transport_method) {
+	case SF_TM_ASM:
+	case SF_TM_SSM:
+		/*
+		 * Convert mcast addr to something useful
+		 */
+		conv_params_mcast(*ip_ver, mcast_addr, mcast_addr_s, port_s);
+		break;
+	case SF_TM_IPBC:
+		/*
+		 * Convert broadcast addr to something useful
+		 */
+		res = conv_params_ipbc(mcast_addr, mcast_addr_s, port_s, ifa_local);
+		if (res == -1) {
+			warnx("illegal broadcast address, -M argument doesn't match with local"
+			    " broadcast address");
+			goto error_usage_exit;
+		}
+		break;
+	}
+
+	/*
+	 * Assign port from mcast_addr
+	 */
+	*port = af_sa_port(AF_CAST_SA(&mcast_addr->sas));
 
 	freeifaddrs(ifa_list);
 
@@ -431,6 +472,61 @@ conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
 		free(ai_local->host_name);
 		free(ai_local);
 	}
+}
+
+/*
+ * Convert ipbc_addr_s to ipbc_addr ai_item.
+ * Function returns 0 on success, -1 if given broadcast address is not same as local interface one.
+ */
+static int
+conv_params_ipbc(struct ai_item *ipbc_addr, const char *ipbc_addr_s, const char *port_s,
+    const struct ifaddrs *ifa_local)
+{
+	struct addrinfo *ai_res, *ai_i;
+	char ifa_ipbc_addr_s[INET6_ADDRSTRLEN];
+	int ip_ver;
+
+	ip_ver = 4;
+
+	if (ifa_local->ifa_broadaddr == NULL) {
+		errx(1, "selected local interface isn't broadcast aware");
+	}
+
+	if (ipbc_addr_s == NULL) {
+		af_sa_to_str(ifa_local->ifa_broadaddr, ifa_ipbc_addr_s);
+		ipbc_addr_s = ifa_ipbc_addr_s;
+	}
+
+	ipbc_addr->host_name = (char *)malloc(strlen(ipbc_addr_s) + 1);
+	if (ipbc_addr->host_name == NULL) {
+		errx(1, "Can't alloc memory");
+	}
+	memcpy(ipbc_addr->host_name, ipbc_addr_s, strlen(ipbc_addr_s) + 1);
+
+	ai_res = af_host_to_ai(ipbc_addr_s, port_s, ip_ver);
+
+	for (ai_i = ai_res; ai_i != NULL; ai_i = ai_i->ai_next) {
+		if (af_ai_supported_ipv(ai_i) == ip_ver) {
+			memcpy(&ipbc_addr->sas, ai_i->ai_addr, ai_i->ai_addrlen);
+			break;
+		}
+	}
+
+	if (ai_i == NULL) {
+		DEBUG_PRINTF("Internal program error");
+		err(1, "Internal program error");
+	}
+
+	freeaddrinfo(ai_res);
+
+	/*
+	 * Test if interface broadcast addr is same as returned broadcast addr
+	 */
+	if (!af_sockaddr_eq(ifa_local->ifa_broadaddr, AF_CAST_SA(&ipbc_addr->sas))) {
+		return (-1);
+	}
+
+	return (0);
 }
 
 /*

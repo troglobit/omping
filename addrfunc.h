@@ -75,12 +75,16 @@ extern int		 af_copy_addr(const struct sockaddr_storage *a1,
 extern void		 af_create_any_addr(struct sockaddr *sa, int sa_family, uint16_t port);
 
 extern int		 af_find_local_ai(const struct ai_list *ai_list, int *ip_ver,
-    struct ifaddrs **ifa_list, struct ifaddrs **ifa_local, struct ai_item **ai_item);
+    struct ifaddrs **ifa_list, struct ifaddrs **ifa_local, struct ai_item **ai_item,
+    unsigned int if_flags);
 
 extern struct addrinfo	*af_host_to_ai(const char *host_name, const char *port, int ip_ver);
 extern int		 af_is_ai_in_list(const struct addrinfo *a1, const struct ai_list *ai_list);
 extern int		 af_is_sa_mcast(const struct sockaddr *addr);
-extern int		 af_is_supported_local_ifa(const struct ifaddrs *ifa, int ip_ver);
+
+extern int		 af_is_supported_local_ifa(const struct ifaddrs *ifa, int ip_ver,
+    unsigned int if_flags);
+
 extern socklen_t	 af_sa_len(const struct sockaddr *sa);
 extern uint16_t		 af_sa_port(const struct sockaddr *addr);
 extern int		 af_sa_supported_ipv(const struct sockaddr *sa);

@@ -35,9 +35,9 @@
 #include "logging.h"
 #include "sockfunc.h"
 
-static int	sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast,
-    uint8_t ttl, int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size,
-    int force_buf_size);
+static int	sf_set_socket_common_options(int sock, const struct sockaddr *addr,
+    enum sf_cast_type cast_type, uint8_t ttl, int force_recvttl, int receive_timestamp,
+    int sndbuf_size, int rcvbuf_size, int force_buf_size);
 
 /*
  * Bind socket sock to given address bind_addr.
@@ -56,12 +56,42 @@ sf_bind_socket(const struct sockaddr *bind_addr, int sock)
 }
 
 /*
- * Create and bind UDP multicast socket. Socket is created with mcast_addr address, joined to
- * local_addr address on local_ifname NIC interface with ttl Time-To-Live. allow_mcast_loop
- * is boolean flag to set mcast_loop. transport_method is transport method to use. remote_addrs are
- * list of remote addresses of ai_list type. This is used for SSM to join into appropriate source
- * groups. If receive_timestamp is set, recvmsg cmsg will (if supported) contain timestamp of
- * packet receive. force_recv_ttl is used to force set of recvttl (if option is not supported,
+ * Return cast_type converted to string (uni/multi/broad).
+ */
+const char *
+sf_cast_type_to_str(enum sf_cast_type cast_type)
+{
+	const char *res;
+
+	switch (cast_type) {
+	case SF_CT_UNI:
+		res = "uni";
+		break;
+	case SF_CT_MULTI:
+		res = "multi";
+		break;
+	case SF_CT_BROAD:
+		res = "broad";
+		break;
+	default:
+		DEBUG_PRINTF("Internal error - unknown transport method");
+		errx(1, "Internal error - unknown transport method");
+		/* NOTREACHED */
+	}
+
+	return (res);
+}
+
+/*
+ * Create and bind UDP multicast/broadcast socket.
+ * Socket is created with mcast_addr address, joined to local_addr address on local_ifname NIC
+ * interface with ttl Time-To-Live.
+ * allow_mcast_loop is boolean flag to set mcast_loop.
+ * transport_method is transport method to use.
+ * remote_addrs are list of remote addresses of ai_list type. This is used for SSM to join into
+ * appropriate source groups. If receive_timestamp is set, recvmsg cmsg will (if supported)
+ * contain timestamp of packet receive.
+ * force_recv_ttl is used to force set of recvttl (if option is not supported,
  * error is returned). sndbuf_size is size of socket buffer to allocate for sending packets.
  * rcvbuf_size is size of socket buffer to allocate for receiving packets.
  * Return -1 on failure, otherwise socket file descriptor is returned.
@@ -76,13 +106,28 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 	struct sockaddr_storage any_sas;
 #endif
 	int sock;
+	enum sf_cast_type cast_type;
 
 	sock = sf_create_udp_socket(mcast_addr);
 	if (sock == -1) {
 		return (-1);
 	}
 
-	if (sf_set_socket_common_options(sock, mcast_addr, 1, ttl, force_recvttl,
+	switch (transport_method) {
+	case SF_TM_ASM:
+	case SF_TM_SSM:
+		cast_type = SF_CT_MULTI;
+		break;
+	case SF_TM_IPBC:
+		cast_type = SF_CT_BROAD;
+		break;
+	default:
+		DEBUG_PRINTF("Internal error - unknown transport method");
+		errx(1, "Internal error - unknown transport method");
+		/* NOTREACHED */
+	}
+
+	if (sf_set_socket_common_options(sock, mcast_addr, cast_type, ttl, force_recvttl,
 	    receive_timestamp, sndbuf_size, rcvbuf_size, 1) == -1) {
 		return (-1);
 	}
@@ -91,21 +136,33 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
+	switch (transport_method) {
+	case SF_TM_ASM:
+	case SF_TM_SSM:
 #ifdef __CYGWIN__
-	af_sa_to_any_addr(AF_CAST_SA(&any_sas), mcast_addr);
+		af_sa_to_any_addr(AF_CAST_SA(&any_sas), mcast_addr);
 
-	if (sf_bind_socket(AF_CAST_SA(&any_sas), sock) == -1) {
-		return (-1);
-	}
+		if (sf_bind_socket(AF_CAST_SA(&any_sas), sock) == -1) {
+			return (-1);
+		}
 #else
-	if (sf_bind_socket(mcast_addr, sock) == -1) {
-		return (-1);
-	}
+		if (sf_bind_socket(mcast_addr, sock) == -1) {
+			return (-1);
+		}
 #endif
 
-	if (sf_set_socket_mcast_loop(mcast_addr, sock, allow_mcast_loop) == -1) {
-		return (-1);
+		if (sf_set_socket_mcast_loop(mcast_addr, sock, allow_mcast_loop) == -1) {
+			return (-1);
+		}
+
+		break;
+	case SF_TM_IPBC:
+		if (sf_bind_socket(mcast_addr, sock) == -1) {
+			return (-1);
+		}
+		break;
 	}
+
 
 	switch (transport_method) {
 	case SF_TM_ASM:
@@ -118,6 +175,11 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		    local_ifname, sock) == -1) {
 			return (-1);
 		}
+		break;
+	case SF_TM_IPBC:
+		/*
+		 * Broadcast packet doesn't need any special handling on receiver side
+		 */
 		break;
 	}
 
@@ -144,8 +206,8 @@ sf_create_udp_socket(const struct sockaddr *sa)
 
 /*
  * Create and bind UDP unicast socket with ttl Time-To-Live. It can also set multicast ttl if
- * set_mcast_ttl not 0. If mcast_send is set, options for sending multicast packets are set.
- * allow_mcast_loop is boolean flag to set mcast_loop. local_ifname is name of local interface
+ * set_mcast_ttl not 0. If mcast_send is set, options for sending multicast/broadcast packets are
+ * set. allow_mcast_loop is boolean flag to set mcast_loop. local_ifname is name of local interface
  * where local_addr is present. transport_method is transport method to use. If receive_timestamp is
  * set, recvmsg cmsg will (if supported) contain timestamp of packet receive. force_recv_ttl is
  * used to force set of recvttl (if option is not supported, error is returned). sndbuf_size is
@@ -165,22 +227,32 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 		return (-1);
 	}
 
-	if (sf_set_socket_common_options(sock, local_addr, 0, ttl, force_recvttl,
+	if (sf_set_socket_common_options(sock, local_addr, SF_CT_UNI, ttl, force_recvttl,
 	    receive_timestamp, sndbuf_size, rcvbuf_size, 1) == -1) {
 		return (-1);
 	}
 
 	if (mcast_send) {
-		if (sf_set_socket_ttl(local_addr, 1, sock, ttl) == -1) {
-			return (-1);
-		}
+		switch (transport_method) {
+		case SF_TM_ASM:
+		case SF_TM_SSM:
+			if (sf_set_socket_ttl(local_addr, SF_CT_MULTI, sock, ttl) == -1) {
+				return (-1);
+			}
 
-		if (sf_set_socket_mcast_loop(local_addr, sock, allow_mcast_loop) == -1) {
-			return (-1);
-		}
+			if (sf_set_socket_mcast_loop(local_addr, sock, allow_mcast_loop) == -1) {
+				return (-1);
+			}
 
-		if (sf_set_socket_mcast_if(local_addr, sock, local_ifname) == -1) {
-			return (-1);
+			if (sf_set_socket_mcast_if(local_addr, sock, local_ifname) == -1) {
+				return (-1);
+			}
+			break;
+		case SF_TM_IPBC:
+			if (sf_set_socket_broadcast(sock, 1) == -1) {
+				return (-1);
+			}
+			break;
 		}
 	}
 
@@ -191,6 +263,26 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 	return (sock);
 }
 
+/*
+ * Return 1 if broadcast is supported on given OS on compilation time, otherwise 0
+ */
+int
+sf_is_ipbc_supported(void)
+{
+#ifdef __CYGWIN__
+	return (0);
+#endif
+
+#ifndef SO_BROADCAST
+	return (0);
+#endif
+
+	return (1);
+}
+
+/*
+ * Return 1 if ssm is supported on given OS on compilation time, otherwise 0
+ */
 int
 sf_is_ssm_supported(void)
 {
@@ -373,7 +465,7 @@ sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr, const struct soc
 int
 sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size, int force_buf_size)
 {
-	char *opt_name_s;
+	const char *opt_name_s;
 	socklen_t optlen;
 	int opt_name;
 	int res;
@@ -426,8 +518,8 @@ sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size, i
 
 /*
  * Set common options for socket. Options are ipv6only, ttl, recvttl and receive timestamp. sock is
- * socket to set options, addr is address, mcast should be true if socket is multicast otherwise
- * false, ttl is new Time-To-Live. force_recv_ttl is used to force set of recvttl (if option is
+ * socket to set options, addr is address, cast_type is ether uni/multi or broad cast socket.
+ * ttl is new Time-To-Live. force_recv_ttl is used to force set of recvttl (if option is
  * not supported, error is returned). If receive_timestamp is set, recvmsg cmsg will (if
  * supported) contain timestamp of packet receive. sndbuf_size is size of socket buffer to
  * allocate for sending packets. rcvbuf_size is size of socket buffer to allocate for receiving
@@ -436,14 +528,15 @@ sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size, i
  * Return -1 on failure, otherwise 0.
  */
 static int
-sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, uint8_t ttl,
-    int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size, int force_buf_size)
+sf_set_socket_common_options(int sock, const struct sockaddr *addr, enum sf_cast_type cast_type,
+    uint8_t ttl, int force_recvttl, int receive_timestamp, int sndbuf_size, int rcvbuf_size,
+    int force_buf_size)
 {
 	const char *cast_str;
 	int new_buf_size;
 	int res;
 
-	cast_str = (!mcast ? "uni" : "multi");
+	cast_str = sf_cast_type_to_str(cast_type);
 
 	if (sf_set_socket_buf_size(sock, 1, sndbuf_size, &new_buf_size, force_buf_size) == -1) {
 		return (-1);
@@ -463,7 +556,7 @@ sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, u
 		}
 	}
 
-	if (sf_set_socket_ttl(addr, mcast, sock, ttl) == -1) {
+	if (sf_set_socket_ttl(addr, cast_type, sock, ttl) == -1) {
 		return (-1);
 	}
 
@@ -476,6 +569,26 @@ sf_set_socket_common_options(int sock, const struct sockaddr *addr, int mcast, u
 		if (sf_set_socket_timestamp(sock) == -1) {
 			return (-1);
 		}
+	}
+
+	return (0);
+}
+
+/*
+ * Enable or disable broadcast sending
+ * Function returns 0 on success, otherwise -1.
+ */
+int
+sf_set_socket_broadcast(int sock, int enable)
+{
+	int opt;
+
+	opt = (enable ? 1 : 0);
+
+	if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt)) == -1) {
+		DEBUG_PRINTF("setsockopt SO_BROADCAST failed");
+
+		return (-1);
 	}
 
 	return (0);
@@ -691,13 +804,13 @@ sf_set_socket_timestamp(int sock)
 }
 
 /*
- * Set TTL (time-to-live) to socket. sa is sockaddr used to determine address family, mcast is
- * boolean variable used to determine if socket is multicast (>1) or not (0) and ttl is actual TTL
- * to set.
+ * Set TTL (time-to-live) to socket. sa is sockaddr used to determine address family, cast_type is
+ * variable used to determine if socket is unicast, multicast or broadcast and ttl is actual
+ * TTL to set.
  * Function returns 0 on success, otherwise -1.
  */
 int
-sf_set_socket_ttl(const struct sockaddr *sa, int mcast, int sock, uint8_t ttl)
+sf_set_socket_ttl(const struct sockaddr *sa, enum sf_cast_type cast_type, int sock, uint8_t ttl)
 {
 	int ittl;
 	int res;
@@ -706,7 +819,7 @@ sf_set_socket_ttl(const struct sockaddr *sa, int mcast, int sock, uint8_t ttl)
 
 	switch (sa->sa_family) {
 	case AF_INET:
-		if (mcast) {
+		if (cast_type == SF_CT_MULTI) {
 			res = setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 			if (res == -1) {
 				DEBUG_PRINTF("setsockopt IP_MULTICAST_TTL failed");
@@ -721,7 +834,7 @@ sf_set_socket_ttl(const struct sockaddr *sa, int mcast, int sock, uint8_t ttl)
 		}
 		break;
 	case AF_INET6:
-		if (mcast) {
+		if (cast_type == SF_CT_MULTI) {
 			res = setsockopt(sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &ittl,
 			    sizeof(ittl));
 
