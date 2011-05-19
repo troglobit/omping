@@ -1116,7 +1116,7 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 		if (timeout_time != 0) {
 			time_diff = util_time_absdiff(start_time, util_get_time());
 
-			if (time_diff + instance->wait_time > timeout_time) {
+			if ((int)time_diff + instance->wait_time > timeout_time) {
 				receive_timeout = timeout_time - time_diff;
 			} else {
 				receive_timeout = instance->wait_time;
@@ -1137,7 +1137,7 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 		}
 
 		if (timeout_time != 0 &&
-		    util_time_absdiff(start_time, util_get_time()) >= timeout_time) {
+		    (int)util_time_absdiff(start_time, util_get_time()) >= timeout_time) {
 			loop_end = 1;
 		}
 

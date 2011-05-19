@@ -64,7 +64,7 @@ rs_poll_timeout(int unicast_socket, int multicast_socket, int timeout, struct ti
 		*old_tstamp = cur_time;
 	}
 
-	if (util_time_absdiff(cur_time, *old_tstamp) > timeout) {
+	if ((int)util_time_absdiff(cur_time, *old_tstamp) > timeout) {
 		memset(old_tstamp, 0, sizeof(*old_tstamp));
 
 		return (0);

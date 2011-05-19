@@ -253,7 +253,7 @@ void
 util_random_init(const struct sockaddr_storage *local_addr)
 {
 	unsigned int seed;
-	int i;
+	unsigned int i;
 
 	seed = time(NULL) + getpid();
 

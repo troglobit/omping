@@ -183,7 +183,7 @@ msg_decode(const char *msg, size_t msg_len, struct msg_decoded *decoded)
 			break;
 		case TLV_OPT_TYPE_OPT_REQUEST:
 			if (tlv_len > 1 && (tlv_len % 2  == 0)) {
-				for (pos = 0; pos < tlv_len / 2; pos++) {
+				for (pos = 0; pos < (uint16_t)(tlv_len / 2); pos++) {
 					memcpy(&u16, tlv_iter_get_data(&tlv_iter) + pos * 2,
 					    sizeof(u16));
 
