@@ -71,6 +71,12 @@ extern "C" {
 
 #define MAX_MSG_SIZE		65535
 
+enum omping_op_mode {
+	OMPING_OP_MODE_NORMAL,
+	OMPING_OP_MODE_CLIENT,
+	OMPING_OP_MODE_SERVER,
+};
+
 #ifdef __cplusplus
 }
 #endif

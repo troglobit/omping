@@ -85,7 +85,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
     struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
     int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items,
     int *rate_limit_time, int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries,
-    int *auto_exit)
+    int *auto_exit, enum omping_op_mode *op_mode)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -103,21 +103,22 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	*auto_exit = 1;
 	*cont_stat = 0;
+	*dup_buf_items = MIN_DUP_BUF_ITEMS;
 	*ip_ver = 0;
-	mcast_addr_s = NULL;
 	*local_ifname = NULL;
-	*wait_time = DEFAULT_WAIT_TIME;
-	*ttl = DEFAULT_TTL;
-	*single_addr = 0;
+	mcast_addr_s = NULL;
+	*op_mode = OMPING_OP_MODE_NORMAL;
 	*quiet = 0;
-	*rate_limit_time = 0;
-	*rcvbuf_size = 0;
 	*send_count_queries = 0;
 	*sndbuf_size = 0;
-	*transport_method = SF_TM_ASM;
+	*single_addr = 0;
+	*rate_limit_time = 0;
+	*rcvbuf_size = 0;
 	*timeout_time = 0;
+	*ttl = DEFAULT_TTL;
+	*transport_method = SF_TM_ASM;
+	*wait_time = DEFAULT_WAIT_TIME;
 	*wait_for_finish_time = 0;
-	*dup_buf_items = MIN_DUP_BUF_ITEMS;
 
 	force = 0;
 	ifa_flags = IFF_MULTICAST;
@@ -127,7 +128,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	logging_set_verbose(0);
 
-	while ((ch = getopt(argc, argv, "46CDEFqVvc:i:M:m:p:R:r:S:T:t:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "46CDEFqVvc:i:M:m:O:p:R:r:S:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
 			*ip_ver = 4;
@@ -190,6 +191,18 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			break;
 		case 'm':
 			mcast_addr_s = optarg;
+			break;
+		case 'O':
+			if (strcmp(optarg, "normal") == 0) {
+				*op_mode = OMPING_OP_MODE_NORMAL;
+			} else if (strcmp(optarg, "server") == 0) {
+				*op_mode = OMPING_OP_MODE_SERVER;
+			} else if (strcmp(optarg, "client") == 0) {
+				*op_mode = OMPING_OP_MODE_CLIENT;
+			} else {
+				warnx("illegal parameter, -O argument -- %s", optarg);
+				goto error_usage_exit;
+			}
 			break;
 		case 'p':
 			port_s = optarg;

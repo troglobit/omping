@@ -53,6 +53,7 @@ struct omping_instance {
 	struct ai_item	mcast_addr;
 	struct rh_list	remote_hosts;
 	struct ai_list	remote_addrs;
+	enum omping_op_mode op_mode;
 	enum sf_transport_method transport_method;
 	char		*local_ifname;
 	uint64_t	send_count_queries;
@@ -266,7 +267,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	    &instance->quiet, &instance->cont_stat, &instance->timeout_time,
 	    &instance->wait_for_finish_time, &instance->dup_buf_items, &instance->rate_limit_time,
 	    &instance->sndbuf_size, &instance->rcvbuf_size, &instance->send_count_queries,
-	    &instance->auto_exit);
+	    &instance->auto_exit, &instance->op_mode);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs, instance->dup_buf_items,
 	    instance->rate_limit_time);
