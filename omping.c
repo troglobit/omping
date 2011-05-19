@@ -162,13 +162,21 @@ int
 main(int argc, char *argv[])
 {
 	struct omping_instance instance;
+	int allow_auto_exit;
+	int final_stats;
 	int wait_for_finish_time;
 
 	omping_instance_create(&instance, argc, argv);
 
 	register_signal_handlers();
 
-	omping_send_receive_loop(&instance, instance.timeout_time, 1, 1);
+	if (instance.op_mode == OMPING_OP_MODE_SERVER) {
+		final_stats = allow_auto_exit = 0;
+	} else {
+		final_stats = allow_auto_exit = 1;
+	}
+
+	omping_send_receive_loop(&instance, instance.timeout_time, final_stats, allow_auto_exit);
 
 	if (!instance.single_addr && instance.wait_for_finish_time != 0) {
 		exit_requested = 0;
@@ -283,14 +291,24 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 		err(1, "Can't create/bind unicast socket");
 	}
 
-	instance->mcast_socket =
-	    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
-		AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname, instance->ttl,
-		instance->single_addr, instance->transport_method, &instance->remote_addrs, 1, 0,
-		instance->sndbuf_size, instance->rcvbuf_size);
+	switch (instance->op_mode) {
+	case OMPING_OP_MODE_SERVER:
+		instance->mcast_socket = -1;
+		rh_list_put_to_finish_state(&instance->remote_hosts);
+		break;
+	case OMPING_OP_MODE_CLIENT:
+	case OMPING_OP_MODE_NORMAL:
+		instance->mcast_socket =
+		    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
+			AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname,
+			instance->ttl, instance->single_addr, instance->transport_method,
+			&instance->remote_addrs, 1, 0, instance->sndbuf_size,
+			instance->rcvbuf_size);
 
-	if (instance->mcast_socket == -1) {
-		err(1, "Can't create/bind multicast socket");
+		if (instance->mcast_socket == -1) {
+			err(1, "Can't create/bind multicast socket");
+		}
+		break;
 	}
 
 	util_random_init(&instance->local_addr.sas);
@@ -483,22 +501,37 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 		case MSG_TYPE_INIT:
 			if (cast_type != SF_CT_UNI)
 				goto error_unknown_mcast;
+
+			if (instance->op_mode == OMPING_OP_MODE_CLIENT)
+				goto error_unknown_msg_type;
+
 			res = omping_process_init_msg(instance, msg, msg_len, &msg_decoded, from,
 			    rp_timestamp);
 			break;
 		case MSG_TYPE_RESPONSE:
 			if (cast_type != SF_CT_UNI)
 				goto error_unknown_mcast;
+
+			if (instance->op_mode == OMPING_OP_MODE_SERVER)
+				goto error_unknown_msg_type;
+
 			res = omping_process_response_msg(instance, msg, msg_len, &msg_decoded,
 			    from);
 			break;
 		case MSG_TYPE_QUERY:
 			if (cast_type != SF_CT_UNI)
 				goto error_unknown_mcast;
+
+			if (instance->op_mode == OMPING_OP_MODE_CLIENT)
+				goto error_unknown_msg_type;
+
 			res = omping_process_query_msg(instance, msg, msg_len, &msg_decoded, from,
 			    rp_timestamp);
 			break;
 		case MSG_TYPE_ANSWER:
+			if (instance->op_mode == OMPING_OP_MODE_SERVER && cast_type == SF_CT_UNI)
+				goto error_unknown_msg_type;
+
 			res = omping_process_answer_msg(instance, msg, msg_len, &msg_decoded, from,
 			    ttl, cast_type, rp_timestamp);
 			break;
@@ -533,6 +566,12 @@ omping_process_msg(struct omping_instance *instance, const char *msg, size_t msg
 error_unknown_mcast:
 	DEBUG_PRINTF("Received multicast message with invalid type %c (0x%X)",
 	    msg_decoded.msg_type, msg_decoded.msg_type);
+
+	return (0);
+
+error_unknown_msg_type:
+	DEBUG_PRINTF("Received message type %c (0x%X) which is not supported in given "
+	    "operational mode", msg_decoded.msg_type, msg_decoded.msg_type);
 
 	return (0);
 }
