@@ -857,6 +857,12 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		return (-5);
 	}
 
+	if (rh_item->client_info.state == RH_CS_STOP) {
+		DEBUG_PRINTF("Client is in stop state. Ignoring message.");
+
+		return (-5);
+	}
+
 	if (msg_decoded->client_id == NULL) {
 		DEBUG_PRINTF("Message doesn't contain client id");
 
