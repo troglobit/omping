@@ -651,6 +651,10 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 
 		received = ++rh_item->client_info.no_received[cast_index];
 
+		if (cast_index == 0) {
+			rh_item->client_info.lru_seq_num = msg_decoded->seq_num;
+		}
+
 		if (cast_type != SF_CT_UNI && first_packet &&
 		    !rh_item->client_info.seq_num_overflow) {
 			rh_item->client_info.first_mcast_seq = msg_decoded->seq_num;
@@ -1019,7 +1023,21 @@ omping_send_client_msgs(struct omping_instance *instance)
 			}
 			break;
 		case RH_CS_QUERY:
-			send_res = omping_send_client_query(instance, remote_host, 1);
+			if (instance->wait_time == 0) {
+				/*
+				 * Handle wait time zero specifically. Send query if answer for
+				 * previous query received or after 1ms.
+				 */
+				if (ci->lru_seq_num == ci->seq_num ||
+				    util_time_absdiff(ci->last_query_ts, util_get_time()) >= 1) {
+					send_res = omping_send_client_query(instance, remote_host,
+					    1);
+
+					ci->last_query_ts = util_get_time();
+				}
+			} else {
+				send_res = omping_send_client_query(instance, remote_host, 1);
+			}
 			break;
 		case RH_CS_STOP:
 			/*

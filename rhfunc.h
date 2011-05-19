@@ -63,6 +63,7 @@ struct rh_item_ci {
 	enum		rh_client_state state;
 	char		client_id[CLIENTID_LEN];
 	struct timeval	last_init_ts;
+	struct timeval	last_query_ts;
 	char		*ses_id;
 	uint32_t	*dup_buffer[2];
 	size_t		ses_id_len;
@@ -75,6 +76,7 @@ struct rh_item_ci {
 	uint64_t	no_received[2];
 	uint64_t	no_sent;
 	uint32_t	first_mcast_seq;
+	uint32_t	lru_seq_num; /* Last Received Unicast seq number */
 	uint32_t	seq_num;
 	int		dup_buf_items;
 	int		seq_num_overflow;

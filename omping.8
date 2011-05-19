@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd May 18, 2011
+.Dd May 19, 2011
 .Dt OMPING 8
 .Os
 .
@@ -94,8 +94,10 @@ messages.
 .It Fl i Ar interval
 Wait
 .Ar interval
-seconds between sending each request packet. The default is to wait for one
-second between each packet.
+seconds between sending each request packet. Float values are supported in millisecond precision.
+It's possible to set there 0 with meaning that packets are sent ether after previous unicast reply
+is received or after 1 millisecond, depending on which of these intervals is smaller. The default
+is to wait for one second between each packet.
 .It Fl M Ar transport_method
 Set transport method to use. This can be
 .Cm asm
