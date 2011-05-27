@@ -138,11 +138,14 @@ void
 rh_list_free(struct rh_list *rh_list)
 {
 	struct rh_item *rh_item;
+	struct rh_item *rh_item_next;
 	int i;
 
-	while (!TAILQ_EMPTY(rh_list)) {
-		rh_item = TAILQ_FIRST(rh_list);
-		TAILQ_REMOVE(rh_list, rh_item, entries);
+	rh_item = TAILQ_FIRST(rh_list);
+
+	while (rh_item != NULL) {
+		rh_item_next = TAILQ_NEXT(rh_item, entries);
+
 		free(rh_item->client_info.ses_id);
 
 		for (i = 0; i < 2; i++) {
@@ -150,7 +153,11 @@ rh_list_free(struct rh_list *rh_list)
 		}
 
 		free(rh_item);
+
+		rh_item = rh_item_next;
 	}
+
+	TAILQ_INIT(rh_list);
 }
 
 /*
