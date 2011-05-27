@@ -85,6 +85,7 @@ malloc_error:
 	for (i = 0; i < 2; i++) {
 		free(rh_item->client_info.dup_buffer[i]);
 	}
+	free(rh_item);
 
 	return (NULL);
 }
