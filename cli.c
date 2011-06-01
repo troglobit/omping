@@ -781,6 +781,6 @@ usage()
 
 	printf("usage: %s [-46CDEFqVv] [-c count] [-i interval] [-M transport_method]\n",
 	    PROGRAM_NAME);
-	printf("              [-m mcast_addr] [-p port] [-R rcvbuf] [-r rate_limit] [-S sndbuf]\n");
-	printf("              [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n");
+	printf("%14s[-m mcast_addr] [-O op_mode] [-p port] [-R rcvbuf] [-r rate_limit]\n", "");
+	printf("%14s[-S sndbuf] [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n", "");
 }
