@@ -302,6 +302,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 		rh_list_put_to_finish_state(&instance->remote_hosts, RH_LFS_CLIENT);
 		break;
 	case OMPING_OP_MODE_CLIENT:
+		rh_list_put_to_finish_state(&instance->remote_hosts, RH_LFS_SERVER);
 	case OMPING_OP_MODE_NORMAL:
 		instance->mcast_socket =
 		    sf_create_multicast_socket((struct sockaddr *)&instance->mcast_addr.sas,
