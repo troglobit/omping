@@ -178,11 +178,12 @@ main(int argc, char *argv[])
 
 	omping_send_receive_loop(&instance, instance.timeout_time, final_stats, allow_auto_exit);
 
-	if (!instance.single_addr && instance.wait_for_finish_time != 0) {
+	if (!instance.single_addr && instance.wait_for_finish_time != 0 &&
+	    instance.op_mode != OMPING_OP_MODE_CLIENT) {
 		exit_requested = 0;
 
 		DEBUG_PRINTF("Moving all clients to stop state and server to finishing state");
-		rh_list_put_to_finish_state(&instance.remote_hosts);
+		rh_list_put_to_finish_state(&instance.remote_hosts, RH_LFS_BOTH);
 
 		if (instance.wait_for_finish_time == -1) {
 			wait_for_finish_time = 0;
@@ -267,6 +268,9 @@ omping_client_move_to_stop(struct omping_instance *instance, struct rh_item *ri,
 static void
 omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 {
+	uint16_t bind_port;
+
+	bind_port = 0;
 	memset(instance, 0, sizeof(struct omping_instance));
 
 	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
@@ -285,7 +289,8 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	instance->ucast_socket =
 	    sf_create_unicast_socket(AF_CAST_SA(&instance->local_addr.sas), instance->ttl, 1,
 	    instance->single_addr, instance->local_ifname, instance->transport_method, 1, 0,
-	    instance->sndbuf_size, instance->rcvbuf_size);
+	    instance->sndbuf_size, instance->rcvbuf_size,
+	    (instance->op_mode == OMPING_OP_MODE_CLIENT ? &bind_port : NULL));
 
 	if (instance->ucast_socket == -1) {
 		err(1, "Can't create/bind unicast socket");
@@ -294,7 +299,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	switch (instance->op_mode) {
 	case OMPING_OP_MODE_SERVER:
 		instance->mcast_socket = -1;
-		rh_list_put_to_finish_state(&instance->remote_hosts);
+		rh_list_put_to_finish_state(&instance->remote_hosts, RH_LFS_CLIENT);
 		break;
 	case OMPING_OP_MODE_CLIENT:
 	case OMPING_OP_MODE_NORMAL:
@@ -303,7 +308,8 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 			AF_CAST_SA(&instance->local_addr.sas), instance->local_ifname,
 			instance->ttl, instance->single_addr, instance->transport_method,
 			&instance->remote_addrs, 1, 0, instance->sndbuf_size,
-			instance->rcvbuf_size);
+			instance->rcvbuf_size,
+			(instance->op_mode == OMPING_OP_MODE_CLIENT ? bind_port : 0));
 
 		if (instance->mcast_socket == -1) {
 			err(1, "Can't create/bind multicast socket");

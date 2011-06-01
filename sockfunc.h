@@ -45,14 +45,14 @@ extern int	sf_create_multicast_socket(const struct sockaddr *mcast_addr,
     const struct sockaddr *local_addr, const char *local_ifname, uint8_t ttl,
     int allow_mcast_loop, enum sf_transport_method transport_method,
     const struct ai_list *remote_addrs, int receive_timestamp, int force_recvttl, int sndbuf_size,
-    int rcvbuf_size);
+    int rcvbuf_size, uint16_t bind_port);
 
 extern int	sf_create_udp_socket(const struct sockaddr *sa);
 
 extern int	sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl,
     int mcast_send, int allow_mcast_loop, const char *local_ifname,
     enum sf_transport_method transport_method, int receive_timestamp, int force_recvttl,
-    int  sndbuf_size, int rcvbuf_size);
+    int  sndbuf_size, int rcvbuf_size, uint16_t *bind_port);
 
 extern int	sf_is_ipbc_supported(void);
 

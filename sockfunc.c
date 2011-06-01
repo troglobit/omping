@@ -94,17 +94,19 @@ sf_cast_type_to_str(enum sf_cast_type cast_type)
  * force_recv_ttl is used to force set of recvttl (if option is not supported,
  * error is returned). sndbuf_size is size of socket buffer to allocate for sending packets.
  * rcvbuf_size is size of socket buffer to allocate for receiving packets.
+ * bind_port is port to bind. It can be 0 and then port from mcast_addr is used.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
     const char *local_ifname, uint8_t ttl, int allow_mcast_loop,
     enum sf_transport_method transport_method, const struct ai_list *remote_addrs,
-    int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size)
+    int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size, uint16_t bind_port)
 {
 #ifdef __CYGWIN__
 	struct sockaddr_storage any_sas;
 #endif
+	struct sockaddr_storage bind_addr;
 	int sock;
 	enum sf_cast_type cast_type;
 
@@ -136,20 +138,22 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 		return (-1);
 	}
 
+	af_copy_sa_to_sas(&bind_addr, mcast_addr);
+	if (bind_port != 0) {
+		af_sa_set_port(AF_CAST_SA(&bind_addr), bind_port);
+	}
+
 	switch (transport_method) {
 	case SF_TM_ASM:
 	case SF_TM_SSM:
 #ifdef __CYGWIN__
-		af_sa_to_any_addr(AF_CAST_SA(&any_sas), mcast_addr);
-
-		if (sf_bind_socket(AF_CAST_SA(&any_sas), sock) == -1) {
-			return (-1);
-		}
-#else
-		if (sf_bind_socket(mcast_addr, sock) == -1) {
-			return (-1);
-		}
+		af_sa_to_any_addr(AF_CAST_SA(&any_sas), AF_CAST_SA(&bind_addr));
+		memcpy(&bind_addr, &any_sas, sizeof(*any_sas));
 #endif
+
+		if (sf_bind_socket(AF_CAST_SA(&bind_addr), sock) == -1) {
+			return (-1);
+		}
 
 		if (sf_set_socket_mcast_loop(mcast_addr, sock, allow_mcast_loop) == -1) {
 			return (-1);
@@ -157,7 +161,7 @@ sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct socka
 
 		break;
 	case SF_TM_IPBC:
-		if (sf_bind_socket(mcast_addr, sock) == -1) {
+		if (sf_bind_socket(AF_CAST_SA(&bind_addr), sock) == -1) {
 			return (-1);
 		}
 		break;
@@ -212,14 +216,20 @@ sf_create_udp_socket(const struct sockaddr *sa)
  * set, recvmsg cmsg will (if supported) contain timestamp of packet receive. force_recv_ttl is
  * used to force set of recvttl (if option is not supported, error is returned). sndbuf_size is
  * size of socket buffer to allocate for sending packets. rcvbuf_size is size of socket buffer
- * to allocate for receiving packets.
+ * to allocate for receiving packets. bind_port is port to bind. It can be set to NULL, and then
+ * port from local_addr is used. If real pointer is used, and value is 0, random port is choosen and
+ * real port is returned there. Other value will bind port to given value. Port is in network
+ * format.
  * Return -1 on failure, otherwise socket file descriptor is returned.
  */
 int
 sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mcast_send,
     int allow_mcast_loop, const char *local_ifname, enum sf_transport_method transport_method,
-    int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size)
+    int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size,
+    uint16_t *bind_port)
 {
+	struct sockaddr_storage bind_addr;
+	socklen_t bind_addr_len;
 	int sock;
 
 	sock = sf_create_udp_socket(local_addr);
@@ -256,8 +266,24 @@ sf_create_unicast_socket(const struct sockaddr *local_addr, uint8_t ttl, int mca
 		}
 	}
 
-	if (sf_bind_socket(local_addr, sock) == -1) {
+	af_copy_sa_to_sas(&bind_addr, local_addr);
+
+	if (bind_port != NULL) {
+		af_sa_set_port(AF_CAST_SA(&bind_addr), *bind_port);
+	}
+
+	if (sf_bind_socket(AF_CAST_SA(&bind_addr), sock) == -1) {
 		return (-1);
+	}
+
+	if (bind_port != NULL && *bind_port == 0) {
+		bind_addr_len = sizeof(bind_addr);
+
+		if (getsockname(sock, AF_CAST_SA(&bind_addr), &bind_addr_len) == -1) {
+			return (-1);
+		}
+
+		*bind_port = af_sa_port(AF_CAST_SA(&bind_addr));
 	}
 
 	return (sock);
