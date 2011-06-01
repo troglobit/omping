@@ -265,6 +265,17 @@ af_copy_addr(const struct sockaddr_storage *a1, const struct sockaddr_storage *a
 }
 
 /*
+ * Copy informations stored in sockaddr sa to sockaddr_storage sas.
+ */
+void
+af_copy_sa_to_sas(struct sockaddr_storage *sas, const struct sockaddr *sa)
+{
+
+	memset(sas, 0, sizeof(*sa));
+	memcpy(sas, sa, af_sa_len(sa));
+}
+
+/*
  * Fill in sockaddr sa pointer with in addr any for specified sa_family with specified port. port
  * must be in local byte order.
  */
@@ -591,6 +602,27 @@ af_sa_port(const struct sockaddr *addr)
 	}
 
 	return (port);
+}
+
+/*
+ * Set port number in network order to addr
+ */
+void
+af_sa_set_port(struct sockaddr *addr, uint16_t port)
+{
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)addr)->sin_port = port;
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)addr)->sin6_port = port;
+		break;
+	default:
+		DEBUG_PRINTF("Internal program error");
+		err(1, "Internal program error");
+		break;
+	}
 }
 
 /*
