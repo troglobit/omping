@@ -211,16 +211,21 @@ rh_list_length(const struct rh_list *rh_list)
 }
 
 /*
- * Move all items in rh_list to finish state. This means, that server state is put to
- * RH_SS_FINISHING and client state is moved to RH_CS_STOP
+ * Move all items in rh_list to finish state. fs is which part of remote host is put to finish
+ * state. This may mean, that server state is put to RH_SS_FINISHING and/or client state is moved
+ * to RH_CS_STOP
  */
 void
-rh_list_put_to_finish_state(struct rh_list *rh_list)
+rh_list_put_to_finish_state(struct rh_list *rh_list, enum rh_list_finish_state fs)
 {
 	struct rh_item *rh_item;
 
 	TAILQ_FOREACH(rh_item, rh_list, entries) {
-		rh_item->server_info.state = RH_SS_FINISHING;
-		rh_item->client_info.state = RH_CS_STOP;
+		if (fs == RH_LFS_SERVER || fs == RH_LFS_BOTH) {
+			rh_item->server_info.state = RH_SS_FINISHING;
+		}
+		if (fs == RH_LFS_CLIENT || fs == RH_LFS_BOTH) {
+			rh_item->client_info.state = RH_CS_STOP;
+		}
 	}
 }

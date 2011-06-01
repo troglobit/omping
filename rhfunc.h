@@ -56,6 +56,12 @@ enum rh_client_stop_reason {
 	RH_CSR_SEND_MAXIMUM,
 };
 
+enum rh_list_finish_state {
+	RH_LFS_CLIENT,
+	RH_LFS_SERVER,
+	RH_LFS_BOTH,
+};
+
 /*
  * Remote host info item, client info part
  */
@@ -123,7 +129,8 @@ extern int		 rh_list_hn_max_len(struct rh_list *rh_list);
 
 extern unsigned int	 rh_list_length(const struct rh_list *rh_list);
 
-extern void		 rh_list_put_to_finish_state(struct rh_list *rh_list);
+extern void		 rh_list_put_to_finish_state(struct rh_list *rh_list,
+    enum rh_list_finish_state fs);
 
 #ifdef __cplusplus
 }
