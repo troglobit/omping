@@ -98,6 +98,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	int num;
 	int res;
 	int rate_limit_time_set;
+	int show_ver;
 	int wait_for_finish_time_set;
 	unsigned int ifa_flags;
 
@@ -124,6 +125,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	ifa_flags = IFF_MULTICAST;
 	port_s = DEFAULT_PORT_S;
 	rate_limit_time_set = 0;
+	show_ver = 0;
 	wait_for_finish_time_set = 0;
 
 	logging_set_verbose(0);
@@ -152,8 +154,7 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 			(*quiet)++;
 			break;
 		case 'V':
-			show_version();
-			exit(0);
+			show_ver++;
 			break;
 		case 'v':
 			logging_set_verbose(logging_get_verbose() + 1);
@@ -271,6 +272,20 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 	/*
 	 * Param checking
 	 */
+	if (show_ver == 1) {
+		show_version();
+		exit(0);
+	}
+
+	if (show_ver > 1) {
+		if (*op_mode != OMPING_OP_MODE_NORMAL) {
+			warnx("op_mode must be set to normal for remote version display.");
+			goto error_usage_exit;
+		}
+
+		*op_mode = OMPING_OP_MODE_SHOW_VERSION;
+	}
+
 	if (force < 1) {
 		if (*wait_time < DEFAULT_WAIT_TIME) {
 			warnx("illegal nmber, -i argument %u ms < %u ms. Use -F to force.",

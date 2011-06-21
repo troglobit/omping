@@ -146,6 +146,7 @@ rh_list_free(struct rh_list *rh_list)
 	while (rh_item != NULL) {
 		rh_item_next = TAILQ_NEXT(rh_item, entries);
 
+		free(rh_item->client_info.server_info);
 		free(rh_item->client_info.ses_id);
 
 		for (i = 0; i < 2; i++) {

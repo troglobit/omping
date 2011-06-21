@@ -54,6 +54,7 @@ enum rh_client_stop_reason {
 	RH_CSR_SERVER,
 	RH_CSR_TO_SEND_EXHAUSTED,
 	RH_CSR_SEND_MAXIMUM,
+	RH_CSR_REMOTE_VERSION_RECEIVED,
 };
 
 enum rh_list_finish_state {
@@ -70,8 +71,10 @@ struct rh_item_ci {
 	char		client_id[CLIENTID_LEN];
 	struct timeval	last_init_ts;
 	struct timeval	last_query_ts;
+	char		*server_info;
 	char		*ses_id;
 	uint32_t	*dup_buffer[2];
+	size_t		server_info_len;
 	size_t		ses_id_len;
 	double		avg_rtt[2];
 	double		m2_rtt[2];

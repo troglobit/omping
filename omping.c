@@ -139,6 +139,8 @@ static void	print_client_state(const char *host_name, int host_name_len,
     const struct sockaddr_storage *remote_addr, enum rh_client_state state,
     enum rh_client_stop_reason stop_reason);
 
+static void	print_final_remote_version(const struct rh_list *remote_hosts, int host_name_len);
+
 static void	print_final_stats(const struct rh_list *remote_hosts, int host_name_len,
     enum sf_transport_method transport_method);
 
@@ -301,6 +303,9 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 		instance->mcast_socket = -1;
 		rh_list_put_to_finish_state(&instance->remote_hosts, RH_LFS_CLIENT);
 		break;
+	case OMPING_OP_MODE_SHOW_VERSION:
+		rh_list_put_to_finish_state(&instance->remote_hosts, RH_LFS_SERVER);
+		break;
 	case OMPING_OP_MODE_CLIENT:
 		rh_list_put_to_finish_state(&instance->remote_hosts, RH_LFS_SERVER);
 	case OMPING_OP_MODE_NORMAL:
@@ -453,8 +458,13 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
 			if (display_stats_requested) {
 				display_stats_requested = 0;
 
-				print_final_stats(&instance->remote_hosts, instance->hn_max_len,
-				    instance->transport_method);
+				if (instance->op_mode == OMPING_OP_MODE_SHOW_VERSION) {
+					print_final_remote_version(&instance->remote_hosts,
+					    instance->hn_max_len);
+				} else {
+					print_final_stats(&instance->remote_hosts,
+					    instance->hn_max_len, instance->transport_method);
+				}
 
 				printf("\n");
 
@@ -923,6 +933,33 @@ omping_process_response_msg(struct omping_instance *instance, const char *msg, s
 		return (-5);
 	}
 
+	if (instance->op_mode == OMPING_OP_MODE_SHOW_VERSION) {
+		if (msg_decoded->server_info_len > 0) {
+			rh_item->client_info.server_info_len = msg_decoded->server_info_len;
+
+			free(rh_item->client_info.server_info);
+
+			rh_item->client_info.server_info =
+			    (char *)malloc(rh_item->client_info.server_info_len);
+
+			if (rh_item->client_info.server_info == NULL) {
+				errx(1, "Can't alloc memory");
+			}
+
+			memcpy(rh_item->client_info.server_info, msg_decoded->server_info,
+			    rh_item->client_info.server_info_len);
+
+			omping_client_move_to_stop(instance, rh_item,
+			    RH_CSR_REMOTE_VERSION_RECEIVED);
+		} else {
+			DEBUG_PRINTF("Message doesn't contain server information");
+
+			return (-5);
+		}
+
+		return (0);
+	}
+
 	if (msg_decoded->mcast_grp == NULL || msg_decoded->mcast_grp_len == 0) {
 		DEBUG_PRINTF("Server doesn't send us multicast group");
 
@@ -1070,7 +1107,8 @@ omping_send_client_msgs(struct omping_instance *instance)
 				}
 
 				send_res = ms_init(instance->ucast_socket, &remote_host->addr->sas,
-				    &instance->mcast_addr.sas, ci->client_id, 0);
+				    &instance->mcast_addr.sas, ci->client_id,
+				    (instance->op_mode == OMPING_OP_MODE_SHOW_VERSION ? 1 : 0));
 
 				ci->last_init_ts = util_get_time();
 			}
@@ -1194,8 +1232,12 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 	} while (!loop_end);
 
 	if (final_stats) {
-		print_final_stats(&instance->remote_hosts, instance->hn_max_len,
-		    instance->transport_method);
+		if (instance->op_mode == OMPING_OP_MODE_SHOW_VERSION) {
+			print_final_remote_version(&instance->remote_hosts, instance->hn_max_len);
+		} else {
+			print_final_stats(&instance->remote_hosts, instance->hn_max_len,
+			    instance->transport_method);
+		}
 	}
 }
 
@@ -1258,10 +1300,54 @@ print_client_state(const char *host_name, int host_name_len,
 		case RH_CSR_TO_SEND_EXHAUSTED:
 			printf("given amount of query messages was sent");
 			break;
+		case RH_CSR_REMOTE_VERSION_RECEIVED:
+			printf("remote version received");
+			break;
 		}
 		break;
 	}
 	printf("\n");
+}
+
+/*
+ * Print final remote versions. remote_hosts is list with all remote hosts and host_name_len is
+ * maximal length of host name in list.
+ */
+static void
+print_final_remote_version(const struct rh_list *remote_hosts, int host_name_len)
+{
+	struct rh_item *rh_item;
+	struct rh_item_ci *ci;
+	size_t i;
+	unsigned char ch;
+
+	printf("\n");
+
+	TAILQ_FOREACH(rh_item, remote_hosts, entries) {
+			ci = &rh_item->client_info;
+
+			printf("%-*s : ", host_name_len, rh_item->addr->host_name);
+
+			if (ci->server_info_len == 0) {
+				printf("response message not received\n");
+			} else {
+				for (i = 0; i < ci->server_info_len; i++) {
+					ch = ci->server_info[i];
+
+				if (ch >= ' ' && ch < 0x7f && ch != '\\') {
+					fputc(ch, stdout);
+				} else {
+					if (ch == '\\') {
+						printf("\\\\");
+					} else {
+						printf("\\x%02X", ch);
+					}
+				}
+			}
+
+			printf("\n");
+		}
+	}
 }
 
 /*

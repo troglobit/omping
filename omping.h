@@ -75,6 +75,7 @@ enum omping_op_mode {
 	OMPING_OP_MODE_NORMAL,
 	OMPING_OP_MODE_CLIENT,
 	OMPING_OP_MODE_SERVER,
+	OMPING_OP_MODE_SHOW_VERSION,
 };
 
 #ifdef __cplusplus

@@ -45,7 +45,7 @@ gcra.o: gcra.c gcra.h util.h
 logging.o: logging.c logging.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-msg.o: msg.c msg.h logging.h tlv.h
+msg.o: msg.c msg.h logging.h omping.h tlv.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 msgsend.o: msgsend.c addrfunc.h logging.h msg.h msgsend.h omping.h rsfunc.h util.h
