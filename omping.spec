@@ -1,5 +1,5 @@
 Name: omping
-Version: 0.0.3
+Version: 0.0.4
 Release: 1%{?dist}
 Summary: Utility to test IP multicast functionality
 Group: Applications/Internet
@@ -32,6 +32,9 @@ rm -rf %{buildroot}
 %{_mandir}/man8/*
 
 %changelog
+* Mon Jun 22 2011 Jan Friesse <jfriesse@redhat.com> - 0.0.4-1
+- Update to version 0.0.4
+
 * Mon May 02 2011 Jan Friesse <jfriesse@redhat.com> - 0.0.3-1
 - Update to version 0.0.3
 
