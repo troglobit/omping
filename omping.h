@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
 #define PROGRAM_NAME		"omping"
-#define PROGRAM_VERSION		"0.0.4"
+#define PROGRAM_VERSION		"0.0.5"
 #define PROGRAM_SERVER_INFO	PROGRAM_NAME" "PROGRAM_VERSION
 
 #define DEFAULT_PORT_S		"4321"
