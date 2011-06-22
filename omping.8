@@ -14,7 +14,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd Jun 21, 2011
+.Dd Jun 22, 2011
 .Dt OMPING 8
 .Os
 .
@@ -117,11 +117,16 @@ can be running in three different modes. Default and recommended mode for quick 
 .Cm normal
 mode, when
 .Nm
-behaves like client and server together. It sends queries and is able to respond them. In
-.Cm server
-mode
-.Nm
-never sends it's own queries but responds to other nodes one. Finally the
+behaves like client and server together. It sends queries and is able to respond them.
+.\"
+.\" Temporarily disabled
+.\"
+.\" In
+.\" .Cm server
+.\" mode
+.\" .Nm
+.\" never sends it's own queries but responds to other nodes one.
+Finally the
 .Cm client
 mode sends queries, but never respond to other nodes.
 .It Fl p Ar port

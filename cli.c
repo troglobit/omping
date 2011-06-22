@@ -196,8 +196,12 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 		case 'O':
 			if (strcmp(optarg, "normal") == 0) {
 				*op_mode = OMPING_OP_MODE_NORMAL;
+			/*
+			 * Temporarily disabled
+			 *
 			} else if (strcmp(optarg, "server") == 0) {
 				*op_mode = OMPING_OP_MODE_SERVER;
+			*/
 			} else if (strcmp(optarg, "client") == 0) {
 				*op_mode = OMPING_OP_MODE_CLIENT;
 			} else {
