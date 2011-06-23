@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#include "addrfunc.h"
+#include "aiifunc.h"
 
 /*
  * Definitions

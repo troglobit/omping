@@ -36,6 +36,7 @@
 #include <windows.h>
 #endif
 
+#include "addrfunc.h"
 #include "logging.h"
 #include "util.h"
 

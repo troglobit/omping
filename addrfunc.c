@@ -72,28 +72,6 @@ af_ai_deep_eq(const struct addrinfo *a1, const struct addrinfo *a2)
 }
 
 /*
- * Find out if ai is duplicate of items in ai_list. ai_list is first addrinfo item (returned by
- * getaddrinfo) and list is traversed up to ai item.
- * Function return 0 if ai is not duplicate of items in ai_list, otherwise 1
- */
-int
-af_ai_is_dup(const struct addrinfo *ai_list, const struct addrinfo *ai)
-{
-	const struct addrinfo *ai_i;
-	int res;
-
-	res = 0;
-
-	for (ai_i = ai_list; res == 0 && ai_i != ai && ai_i != NULL; ai_i = ai_i->ai_next) {
-		if (af_ai_eq(ai_i, ai)) {
-			res = 1;
-		}
-	}
-
-	return (res);
-}
-
-/*
  * Test if given list of addrinfo ai is loopback address or not. Returns > 0 if
  * addrinfo list ai is loopback, otherwise 0. This one goes to deep.
  */
@@ -111,7 +89,8 @@ af_ai_deep_is_loopback(const struct addrinfo *a1)
 	return (0);
 }
 
-/* Deeply test what IP versions are supported on given ai_addr. Can return 4 (only ipv4 is
+/*
+ * Deeply test what IP versions are supported on given ai_addr. Can return 4 (only ipv4 is
  * supported), 6 (only ipv6 is supported), 0 (both ipv4 and ipv6 are supported) and -1 (nether ipv4
  * or ipv6 are supported)
  */
@@ -150,6 +129,28 @@ af_ai_deep_supported_ipv(const struct addrinfo *ai_addr)
 }
 
 /*
+ * Find out if ai is duplicate of items in ai_list. ai_list is first addrinfo item (returned by
+ * getaddrinfo) and list is traversed up to ai item.
+ * Function return 0 if ai is not duplicate of items in ai_list, otherwise 1
+ */
+int
+af_ai_is_dup(const struct addrinfo *ai_list, const struct addrinfo *ai)
+{
+	const struct addrinfo *ai_i;
+	int res;
+
+	res = 0;
+
+	for (ai_i = ai_list; res == 0 && ai_i != ai && ai_i != NULL; ai_i = ai_i->ai_next) {
+		if (af_ai_eq(ai_i, ai)) {
+			res = 1;
+		}
+	}
+
+	return (res);
+}
+
+/*
  * Test if given addrinfo ai is loopback address or not. Returns > 0 if
  * addrinfo ai is loopback, otherwise 0. This one don't goes to deep,
  * so compares really only one struct not list of them.
@@ -175,29 +176,7 @@ af_ai_is_loopback(const struct addrinfo *ai)
 }
 
 /*
- * Free content of ai_list. List must have sas field active (not ai field)
- */
-void
-af_ai_list_free(struct ai_list *ai_list)
-{
-	struct ai_item *ai_item;
-	struct ai_item *ai_item_next;
-
-	ai_item = TAILQ_FIRST(ai_list);
-
-	while (ai_item != NULL) {
-		ai_item_next = TAILQ_NEXT(ai_item, entries);
-
-		free(ai_item->host_name);
-		free(ai_item);
-
-		ai_item = ai_item_next;
-	}
-
-	TAILQ_INIT(ai_list);
-}
-
-/* Return supported ip version. This function doesn't go deeply to structure. It can return 4 (ipv4
+ * Return supported ip version. This function doesn't go deeply to structure. It can return 4 (ipv4
  * is supported), 6 (ipv6 is supported) or 0 (nether ipv4 or ipv6 are supported).
  */
 int
@@ -307,103 +286,6 @@ af_create_any_addr(struct sockaddr *sa, int sa_family, uint16_t port)
 }
 
 /*
- * Tries to find local address in ai_list with given ip_ver. if_flags may be set to bit mask with
- * IFF_MULTICAST and/or IFF_BROADCAST and only network interface with that flags will be accepted.
- * Returns 0 on success, otherwise -1.
- * It also changes ifa_list (result of getaddrs), ifa_local (local addr) and ai_item (addrinfo item
- * which matches ifa_local).
- */
-int
-af_find_local_ai(const struct ai_list *ai_list, int *ip_ver, struct ifaddrs **ifa_list,
-    struct ifaddrs **ifa_local, struct ai_item **ai_item, unsigned int if_flags)
-{
-	struct addrinfo *ai_i;
-	struct ai_item *aip;
-	struct ifaddrs *ifa, *ifa_i;
-	char sa_str[LOGGING_SA_TO_STR_LEN];
-	char sa_str2[LOGGING_SA_TO_STR_LEN];
-	int ipv4_fallback;
-	int res;
-
-	*ifa_local = NULL;
-	ipv4_fallback = 0;
-
-	if (getifaddrs(&ifa) == -1) {
-		err(1, "getifaddrs");
-	}
-
-	TAILQ_FOREACH(aip, ai_list, entries) {
-		for (ai_i = aip->ai; ai_i != NULL; ai_i = ai_i->ai_next) {
-			if (af_ai_is_dup(aip->ai, ai_i)) {
-				logging_sa_to_str(ai_i->ai_addr, sa_str, sizeof(sa_str));
-				DEBUG2_PRINTF("Found duplicate addr %s", sa_str);
-				continue ;
-			}
-
-			for (ifa_i = ifa; ifa_i != NULL; ifa_i = ifa_i->ifa_next) {
-				if (ifa_i->ifa_addr == NULL ||
-				    (ifa_i->ifa_addr->sa_family != AF_INET &&
-				    ifa_i->ifa_addr->sa_family != AF_INET6)) {
-					continue ;
-				}
-
-				logging_sa_to_str(ifa_i->ifa_addr, sa_str, sizeof(sa_str));
-				logging_sa_to_str(ai_i->ai_addr, sa_str2, sizeof(sa_str2));
-				DEBUG2_PRINTF("Comparing %s(%s) with %s", sa_str, ifa_i->ifa_name,
-				    sa_str2);
-
-				if (af_sockaddr_eq(ifa_i->ifa_addr, ai_i->ai_addr)) {
-					res = af_is_supported_local_ifa(ifa_i, *ip_ver, if_flags);
-
-					if (res == 1 || res == 2) {
-						if (*ifa_local != NULL && ipv4_fallback == 0)
-							goto multiple_match_error;
-
-						*ifa_list = ifa;
-						*ifa_local = ifa_i;
-						*ai_item = aip;
-
-						if (*ip_ver == 0) {
-							/*
-							 * Device supports ipv6
-							 */
-							*ip_ver = 6;
-							DEBUG2_PRINTF("Supports ipv6");
-						}
-
-						if (res == 2) {
-							/*
-							 * Set this item as ipv4 fallback
-							 */
-							ipv4_fallback++;
-							DEBUG2_PRINTF("Supports ipv4 - fallback");
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if (*ip_ver == 0 && *ifa_local != NULL) {
-		if (ipv4_fallback > 1)
-			goto multiple_match_error;
-
-		*ip_ver = 4;
-	}
-
-	if (*ifa_local != NULL) {
-		return (0);
-	}
-
-	DEBUG_PRINTF("Can't find local addr");
-	return (-1);
-
-multiple_match_error:
-	errx(1, "Multiple local interfaces match parameters.");
-	return (-1);
-}
-
-/*
  * Convert host_name and port with ip ver (4 or 6) to addrinfo.
  * Wrapper on getaddrinfo
  */
@@ -449,22 +331,6 @@ af_host_to_ai(const char *host_name, const char *port, int ip_ver)
 	}
 
 	return (ai_res0);
-}
-
-/*
- * Test if addrinfo a1 is included in ai_list list. Return 1 if a1 is included, otherwise 0.
- */
-int
-af_is_ai_in_list(const struct addrinfo *a1, const struct ai_list *ai_list)
-{
-	struct ai_item *aip;
-
-	TAILQ_FOREACH(aip, ai_list, entries) {
-		if (af_ai_deep_eq(a1, aip->ai))
-			return (1);
-	}
-
-	return (0);
 }
 
 /*

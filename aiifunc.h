@@ -18,27 +18,53 @@
  * Author: Jan Friesse <jfriesse@redhat.com>
  */
 
-#ifndef _CLI_H_
-#define _CLI_H_
+#ifndef _AIIFUNC_H_
+#define _AIIFUNC_H_
 
-#include "aiifunc.h"
-#include "omping.h"
-#include "sockfunc.h"
+#include <sys/types.h>
+
+#include <sys/queue.h>
+#include <sys/socket.h>
+
+#include <net/if.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <ifaddrs.h>
+#include <netdb.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int	cli_parse(struct aii_list *aii_list, int argc, char * const argv[],
-    char **local_ifname, int *ip_ver, struct ai_item *local_addr, int *wait_time,
-    enum sf_transport_method *transport_method, struct ai_item *mcast_addr,
-    uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet, int *cont_stat,
-    int *timeout_time, int *wait_for_finish_time, int *dup_buf_items, int *rate_limit_time,
-    int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries, int *auto_exit,
-    enum omping_op_mode *op_mode);
+/*
+ * Address info item. This is intended to use with TAILQ list.
+ */
+struct ai_item {
+	union {
+		struct addrinfo *ai;
+		struct sockaddr_storage sas;
+	};
+	char		*host_name;
+	TAILQ_ENTRY(ai_item) entries;
+};
+
+/*
+ * Typedef of TAILQ head of list of ai_item(s)
+ */
+TAILQ_HEAD(aii_list, ai_item);
+
+extern void		 aii_list_free(struct aii_list *aii_list);
+
+extern int		 aii_find_local(const struct aii_list *aii_list, int *ip_ver,
+    struct ifaddrs **ifa_list, struct ifaddrs **ifa_local, struct ai_item **ai_item,
+    unsigned int if_flags);
+
+extern int		 aii_is_ai_in_list(const struct addrinfo *a1,
+    const struct aii_list *aii_list);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _CLI_H_ */
+#endif /* _AIIFUNC_H_ */

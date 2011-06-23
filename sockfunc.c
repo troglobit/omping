@@ -88,7 +88,7 @@ sf_cast_type_to_str(enum sf_cast_type cast_type)
  * interface with ttl Time-To-Live.
  * allow_mcast_loop is boolean flag to set mcast_loop.
  * transport_method is transport method to use.
- * remote_addrs are list of remote addresses of ai_list type. This is used for SSM to join into
+ * remote_addrs are list of remote addresses of aii_list type. This is used for SSM to join into
  * appropriate source groups. If receive_timestamp is set, recvmsg cmsg will (if supported)
  * contain timestamp of packet receive.
  * force_recv_ttl is used to force set of recvttl (if option is not supported,
@@ -100,7 +100,7 @@ sf_cast_type_to_str(enum sf_cast_type cast_type)
 int
 sf_create_multicast_socket(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
     const char *local_ifname, uint8_t ttl, int allow_mcast_loop,
-    enum sf_transport_method transport_method, const struct ai_list *remote_addrs,
+    enum sf_transport_method transport_method, const struct aii_list *remote_addrs,
     int receive_timestamp, int force_recvttl, int sndbuf_size, int rcvbuf_size, uint16_t bind_port)
 {
 #ifdef __CYGWIN__
@@ -465,7 +465,7 @@ sf_mcast_join_ssm_group(const struct sockaddr *mcast_addr, const struct sockaddr
  */
 int
 sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr, const struct sockaddr *local_addr,
-    const struct ai_list *remote_addrs, const char *local_ifname, int sock)
+    const struct aii_list *remote_addrs, const char *local_ifname, int sock)
 {
 	struct ai_item *ai_item_i;
 

@@ -37,9 +37,9 @@
 #include "cli.h"
 #include "logging.h"
 
-static void	conv_list_addrs(struct ai_list *ai_list, int ip_ver);
+static void	conv_list_addrs(struct aii_list *aii_list, int ip_ver);
 
-static void	conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
+static void	conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
     const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr);
 
 static int	conv_params_ipbc(struct ai_item *ipbc_addr, const char *ipbc_addr_s,
@@ -49,10 +49,10 @@ static void	conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char
     const char *port_s);
 
 static int	parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
-    struct ai_list *ai_list);
+    struct aii_list *aii_list);
 
 static int	return_ip_ver(int ip_ver, const char *mcast_addr, const char *port,
-    struct ai_list *ai_list);
+    struct aii_list *aii_list);
 
 static void	show_version(void);
 static void	usage();
@@ -62,7 +62,7 @@ static void	usage();
  * argc and argv are passed from main function. local_ifname will be allocated and filled by name
  * of local ethernet interface. ip_ver will be filled by forced ip version or will
  * be 0. mcast_addr will be filled by requested mcast address or will be NULL. Port will be filled
- * by requested port (string value) or will be NULL. ai_list will be initialized and requested
+ * by requested port (string value) or will be NULL. aii_list will be initialized and requested
  * hostnames will be stored there. ttl is pointer where user set TTL or default TTL will be stored.
  * single_addr is boolean set if only one remote address is entered. quiet is flag for quiet mode.
  * cont_stat is flag for enable continuous statistic. timeout_time is number of miliseconds after
@@ -80,12 +80,12 @@ static void	usage();
  * STOP state.
  */
 int
-cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_ifname, int *ip_ver,
-    struct ai_item *local_addr, int *wait_time, enum sf_transport_method *transport_method,
-    struct ai_item *mcast_addr, uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet,
-    int *cont_stat, int *timeout_time, int *wait_for_finish_time, int *dup_buf_items,
-    int *rate_limit_time, int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries,
-    int *auto_exit, enum omping_op_mode *op_mode)
+cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local_ifname,
+    int *ip_ver, struct ai_item *local_addr, int *wait_time,
+    enum sf_transport_method *transport_method, struct ai_item *mcast_addr, uint16_t *port,
+    uint8_t *ttl, int *single_addr, int *quiet, int *cont_stat, int *timeout_time,
+    int *wait_for_finish_time, int *dup_buf_items, int *rate_limit_time, int *sndbuf_size,
+    int *rcvbuf_size, uint64_t *send_count_queries,int *auto_exit, enum omping_op_mode *op_mode)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -350,24 +350,24 @@ cli_parse(struct ai_list *ai_list, int argc, char * const argv[], char **local_i
 
 	}
 
-	TAILQ_INIT(ai_list);
+	TAILQ_INIT(aii_list);
 
-	parse_remote_addrs(argc, argv, port_s, *ip_ver, ai_list);
-	*ip_ver = return_ip_ver(*ip_ver, mcast_addr_s, port_s, ai_list);
+	parse_remote_addrs(argc, argv, port_s, *ip_ver, aii_list);
+	*ip_ver = return_ip_ver(*ip_ver, mcast_addr_s, port_s, aii_list);
 
-	if (af_find_local_ai(ai_list, ip_ver, &ifa_list, &ifa_local, &ai_item, ifa_flags) < 0) {
+	if (aii_find_local(aii_list, ip_ver, &ifa_list, &ifa_local, &ai_item, ifa_flags) < 0) {
 		errx(1, "Can't find local address in arguments");
 	}
 
 	/*
-	 * Change ai_list to struct of sockaddr_storage(s)
+	 * Change aii_list to struct of sockaddr_storage(s)
 	 */
-	conv_list_addrs(ai_list, *ip_ver);
+	conv_list_addrs(aii_list, *ip_ver);
 
 	/*
 	 * Find local addr and copy that. Also remove that from list
 	 */
-	conv_local_addr(ai_list, ai_item, ifa_local, *ip_ver, local_addr, single_addr);
+	conv_local_addr(aii_list, ai_item, ifa_local, *ip_ver, local_addr, single_addr);
 
 	/*
 	 * Store local ifname
@@ -419,14 +419,14 @@ error_usage_exit:
  * correctly free addrinfo(s) in list.
  */
 static void
-conv_list_addrs(struct ai_list *ai_list, int ip_ver)
+conv_list_addrs(struct aii_list *aii_list, int ip_ver)
 {
 	struct sockaddr_storage tmp_sas;
 	struct addrinfo *ai_i;
 	struct ai_item *ai_item_i;
 	char *hn;
 
-	TAILQ_FOREACH(ai_item_i, ai_list, entries) {
+	TAILQ_FOREACH(ai_item_i, aii_list, entries) {
 		hn = (char *)malloc(strlen(ai_item_i->host_name) + 1);
 		if (hn == NULL) {
 			errx(1, "Can't alloc memory");
@@ -455,7 +455,7 @@ conv_list_addrs(struct ai_list *ai_list, int ip_ver)
  * not then ai_local is freed and removed from list.
  */
 static void
-conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
+conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
     const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr)
 {
 	size_t addr_len;
@@ -496,10 +496,10 @@ conv_local_addr(struct ai_list *ai_list, struct ai_item *ai_local,
 		break;
 	}
 
-	*single_addr = (TAILQ_NEXT(TAILQ_FIRST(ai_list), entries) == NULL);
+	*single_addr = (TAILQ_NEXT(TAILQ_FIRST(aii_list), entries) == NULL);
 
 	if (!*single_addr) {
-		TAILQ_REMOVE(ai_list, ai_local, entries);
+		TAILQ_REMOVE(aii_list, ai_local, entries);
 
 		free(ai_local->host_name);
 		free(ai_local);
@@ -620,7 +620,7 @@ conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr
  */
 static int
 parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
-    struct ai_list *ai_list)
+    struct aii_list *aii_list)
 {
 	struct addrinfo *ai_res;
 	struct ai_item *ai_item;
@@ -631,7 +631,7 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
 
 	for (i = 0; i < argc; i++) {
 		ai_res = af_host_to_ai(argv[i], port, ip_ver);
-		if (!af_is_ai_in_list(ai_res, ai_list)) {
+		if (!aii_is_ai_in_list(ai_res, aii_list)) {
 			if (af_ai_deep_is_loopback(ai_res)) {
 				errx(1,"Address %s looks like loopback. Loopback ping is not "
 				    "supported", argv[i]);
@@ -646,7 +646,7 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
 			ai_item->ai = ai_res;
 			ai_item->host_name = argv[i];
 
-			TAILQ_INSERT_TAIL(ai_list, ai_item, entries);
+			TAILQ_INSERT_TAIL(aii_list, ai_item, entries);
 			DEBUG_PRINTF("new address \"%s\" added to list (position %d)", argv[i],
 			    no_ai);
 			no_ai++;
@@ -677,7 +677,7 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
  *     - otherwise return 0 (item in find_local_addrinfo will be used but preferably ipv6)
  */
 static int
-return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct ai_list *ai_list)
+return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct aii_list *aii_list)
 {
 	struct addrinfo *ai_res;
 	struct ai_item *aip;
@@ -708,7 +708,7 @@ return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct ai_li
 			/*
 			 * Walk thru all addresses to find out, what it supports
 			 */
-			TAILQ_FOREACH(aip, ai_list, entries) {
+			TAILQ_FOREACH(aip, aii_list, entries) {
 				ipver_res = af_ai_deep_supported_ipv(aip->ai);
 				DEBUG2_PRINTF("ipver for %s is %d", aip->host_name, ipver_res);
 
@@ -732,7 +732,7 @@ return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct ai_li
 	/*
 	 * Walk thru all addresses to find out, what it supports
 	 */
-	TAILQ_FOREACH(aip, ai_list, entries) {
+	TAILQ_FOREACH(aip, aii_list, entries) {
 		ipver_res = af_ai_deep_supported_ipv(aip->ai);
 		DEBUG2_PRINTF("ipver for %s is %d", aip->host_name, ipver_res);
 
@@ -758,7 +758,7 @@ return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct ai_li
 		 * Host supports only one version.
 		 * Test availability for that version on all hosts
 		 */
-		TAILQ_FOREACH(aip, ai_list, entries) {
+		TAILQ_FOREACH(aip, aii_list, entries) {
 			ipver_res2 = af_ai_deep_supported_ipv(aip->ai);
 			DEBUG2_PRINTF("ipver for %s is %d", aip->host_name, ipver_res2);
 

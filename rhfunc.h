@@ -119,7 +119,7 @@ TAILQ_HEAD(rh_list, rh_item);
 extern struct rh_item	*rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr,
     int dup_buf_items, int rate_limit_time);
 
-extern void		 rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs,
+extern void		 rh_list_create(struct rh_list *rh_list, struct aii_list *remote_addrs,
     int dup_buf_items, int rate_limit_time);
 
 extern struct rh_item	*rh_list_find(struct rh_list *rh_list, const struct sockaddr *sa);

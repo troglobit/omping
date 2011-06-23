@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include "addrfunc.h"
+#include "aiifunc.h"
 #include "cli.h"
 #include "logging.h"
 #include "msg.h"
@@ -52,7 +53,7 @@ struct omping_instance {
 	struct ai_item	local_addr;
 	struct ai_item	mcast_addr;
 	struct rh_list	remote_hosts;
-	struct ai_list	remote_addrs;
+	struct aii_list	remote_addrs;
 	enum omping_op_mode op_mode;
 	enum sf_transport_method transport_method;
 	char		*local_ifname;
@@ -336,7 +337,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 static void
 omping_instance_free(struct omping_instance *instance)
 {
-	af_ai_list_free(&instance->remote_addrs);
+	aii_list_free(&instance->remote_addrs);
 	rh_list_free(&instance->remote_hosts);
 
 	free(instance->local_addr.host_name);

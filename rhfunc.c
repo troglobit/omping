@@ -91,12 +91,12 @@ malloc_error:
 }
 
 /*
- * Create list of rh_items. It's also possible to pass ai_list to include every address from list to
- * newly allocated rh_list. dup_buf_items is number of items to be stored in duplicate buffers.
+ * Create list of rh_items. It's also possible to pass aii_list to include every address from list
+ * to newly allocated rh_list. dup_buf_items is number of items to be stored in duplicate buffers.
  * rate_limit_time is maximum time between two received packets.
  */
 void
-rh_list_create(struct rh_list *rh_list, struct ai_list *remote_addrs, int dup_buf_items,
+rh_list_create(struct rh_list *rh_list, struct aii_list *remote_addrs, int dup_buf_items,
     int rate_limit_time)
 {
 	struct ai_item *addr;
