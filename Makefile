@@ -29,9 +29,9 @@ all-illumos:
 	    LDFLAGS="$(LDFLAGS) -lsocket -lnsl" $(MAKE) all
 
 $(PROGRAM_NAME): addrfunc.o aiifunc.o cli.o gcra.o logging.o msg.o msgsend.o omping.o rhfunc.o \
-    rsfunc.o sockfunc.o tlv.o util.o
+    rsfunc.o sfset.o sockfunc.o tlv.o util.o
 	$(CC) $(CFLAGS) $(LDFLAGS) addrfunc.o aiifunc.o cli.o gcra.o logging.o msg.o msgsend.o \
-	    omping.o rhfunc.o rsfunc.o sockfunc.o tlv.o util.o -o $@
+	    omping.o rhfunc.o rsfunc.o sfset.o sockfunc.o tlv.o util.o -o $@
 
 addrfunc.o: addrfunc.c addrfunc.h logging.h
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -63,7 +63,10 @@ rhfunc.o: rhfunc.c rhfunc.h addrfunc.h util.h
 rsfunc.o: rsfunc.c rsfunc.h addrfunc.h logging.h util.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-sockfunc.o: sockfunc.c addrfunc.h logging.h sockfunc.h
+sfset.o: sfset.c logging.h sfset.h
+	$(CC) -c $(CFLAGS) $< -o $@
+
+sockfunc.o: sockfunc.c addrfunc.h logging.h sfset.h sockfunc.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 tlv.o: tlv.c logging.h addrfunc.h util.h

@@ -22,6 +22,7 @@
 #define _SOCKFUNC_H_
 
 #include "aiifunc.h"
+#include "sfset.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,12 +32,6 @@ enum sf_transport_method {
 	SF_TM_ASM,
 	SF_TM_SSM,
 	SF_TM_IPBC,
-};
-
-enum sf_cast_type {
-	SF_CT_UNI,
-	SF_CT_MULTI,
-	SF_CT_BROAD,
 };
 
 extern int	sf_bind_socket(const struct sockaddr *bind_addr, int sock);
@@ -70,21 +65,6 @@ extern int	sf_mcast_join_ssm_group(const struct sockaddr *mcast_addr,
 extern int	sf_mcast_join_ssm_group_list(const struct sockaddr *mcast_addr,
     const struct sockaddr *local_addr, const struct aii_list *remote_addrs,
     const char *local_ifname, int sock);
-
-extern int	sf_set_socket_buf_size(int sock, int snd_buf, int buf_size, int *new_buf_size,
-    int force_buf_size);
-
-extern int	sf_set_socket_broadcast(int sock, int enable);
-extern int	sf_set_socket_ipv6only(const struct sockaddr *sa, int sock);
-extern int	sf_set_socket_mcast_if(const struct sockaddr *local_addr, int sock,
-    const char *local_ifname);
-
-extern int	sf_set_socket_mcast_loop(const struct sockaddr *mcast_addr, int sock, int enable);
-extern int	sf_set_socket_recvttl(const struct sockaddr *sa, int sock);
-extern int	sf_set_socket_reuse(int sock);
-extern int	sf_set_socket_timestamp(int sock);
-extern int	sf_set_socket_ttl(const struct sockaddr *sa, enum sf_cast_type cast_type, int sock,
-    uint8_t ttl);
 
 #ifdef __cplusplus
 }
