@@ -28,6 +28,7 @@
 
 #include "cliprint.h"
 #include "logging.h"
+#include "omping.h"
 
 /*
  * Print status of client with host_name (maximum length of host_name_len). transport_method is
@@ -232,6 +233,16 @@ cliprint_final_stats(const struct rh_list *remote_hosts, int host_name_len,
 }
 
 /*
+ * Display newline
+ */
+void
+cliprint_nl(void)
+{
+
+	printf("\n");
+}
+
+/*
  * Print packet statistics. host_name is remote host name with maximal host_name_len length. seq is
  * sequence number of packet, is_dup is boolean with information if packet is duplicate or not,
  * msg_len is length of message, dist_set is boolean variable with information if dist is set or
@@ -280,4 +291,27 @@ cliprint_packet_stats(const char *host_name, int host_name_len, uint32_t seq, in
 	}
 
 	printf("\n");
+}
+
+/*
+ * Display application ussage
+ */
+void
+cliprint_usage(void)
+{
+
+	printf("usage: %s [-46CDEFqVv] [-c count] [-i interval] [-M transport_method]\n",
+	    PROGRAM_NAME);
+	printf("%14s[-m mcast_addr] [-O op_mode] [-p port] [-R rcvbuf] [-r rate_limit]\n", "");
+	printf("%14s[-S sndbuf] [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n", "");
+}
+
+/*
+ * Show application version
+ */
+void
+cliprint_version(void)
+{
+
+	printf("%s version %s\n", PROGRAM_NAME, PROGRAM_VERSION);
 }

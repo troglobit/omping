@@ -434,7 +434,7 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
 					    instance->hn_max_len, instance->transport_method);
 				}
 
-				printf("\n");
+				cliprint_nl();
 
 				if (!exit_requested) {
 					break;

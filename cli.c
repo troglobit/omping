@@ -35,6 +35,7 @@
 #include "addrfunc.h"
 #include "omping.h"
 #include "cli.h"
+#include "cliprint.h"
 #include "logging.h"
 
 static void	conv_list_addrs(struct aii_list *aii_list, int ip_ver);
@@ -53,9 +54,6 @@ static int	parse_remote_addrs(int argc, char * const argv[], const char *port, i
 
 static int	return_ip_ver(int ip_ver, const char *mcast_addr, const char *port,
     struct aii_list *aii_list);
-
-static void	show_version(void);
-static void	usage();
 
 /*
  * Parse command line.
@@ -277,7 +275,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	 * Param checking
 	 */
 	if (show_ver == 1) {
-		show_version();
+		cliprint_version();
 		exit(0);
 	}
 
@@ -408,7 +406,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	return (0);
 
 error_usage_exit:
-	usage();
+	cliprint_usage();
 	exit(1);
 	/* NOTREACHED */
 	return (-1);
@@ -657,7 +655,7 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
 
 	if (no_ai < 1) {
 		warnx("at least one remote addresses should be specified");
-		usage();
+		cliprint_usage();
 		exit(1);
 	}
 
@@ -779,27 +777,4 @@ return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct aii_l
 	DEBUG_PRINTF("Every address support ipv%d", ipver_res);
 
 	return (ipver_res);
-}
-
-/*
- * Show application version
- */
-static void
-show_version(void)
-{
-
-	printf("%s version %s\n", PROGRAM_NAME, PROGRAM_VERSION);
-}
-
-/*
- * Display application ussage
- */
-static void
-usage()
-{
-
-	printf("usage: %s [-46CDEFqVv] [-c count] [-i interval] [-M transport_method]\n",
-	    PROGRAM_NAME);
-	printf("%14s[-m mcast_addr] [-O op_mode] [-p port] [-R rcvbuf] [-r rate_limit]\n", "");
-	printf("%14s[-S sndbuf] [-T timeout] [-t ttl] [-w wait_time] remote_addr...\n", "");
 }

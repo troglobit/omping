@@ -38,9 +38,14 @@ extern void	cliprint_final_remote_version(const struct rh_list *remote_hosts, in
 extern void	cliprint_final_stats(const struct rh_list *remote_hosts, int host_name_len,
     enum sf_transport_method transport_method);
 
+extern void	cliprint_nl(void);
+
 extern void	cliprint_packet_stats(const char *host_name, int host_name_len, uint32_t seq,
     int is_dup, size_t msg_len, int dist_set, uint8_t dist, int rtt_set, double rtt,
     double avg_rtt, int loss, enum sf_cast_type cast_type, int cont_stat);
+
+extern void	cliprint_usage(void);
+extern void	cliprint_version(void);
 
 #ifdef __cplusplus
 }
