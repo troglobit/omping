@@ -33,7 +33,8 @@ extern void	cliprint_client_state(const char *host_name, int host_name_len,
     const struct sockaddr_storage *remote_addr, enum rh_client_state state,
     enum rh_client_stop_reason stop_reason);
 
-extern void	cliprint_final_remote_version(const struct rh_list *remote_hosts, int host_name_len);
+extern void	cliprint_final_remote_version(const struct rh_list *remote_hosts,
+    int host_name_len);
 
 extern void	cliprint_final_stats(const struct rh_list *remote_hosts, int host_name_len,
     enum sf_transport_method transport_method);

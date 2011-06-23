@@ -28,10 +28,11 @@ all-illumos:
 	CFLAGS="$(CFLAGS) -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D__EXTENSIONS__=1" \
 	    LDFLAGS="$(LDFLAGS) -lsocket -lnsl" $(MAKE) all
 
-$(PROGRAM_NAME): addrfunc.o aiifunc.o cli.o cliprint.o gcra.o logging.o msg.o msgsend.o \
-    omping.o rhfunc.o rsfunc.o sfset.o sockfunc.o tlv.o util.o
-	$(CC) $(CFLAGS) $(LDFLAGS) addrfunc.o aiifunc.o cli.o cliprint.o gcra.o logging.o msg.o \
-	    msgsend.o omping.o rhfunc.o rsfunc.o sfset.o sockfunc.o tlv.o util.o -o $@
+$(PROGRAM_NAME): addrfunc.o aiifunc.o cli.o cliprint.o clisig.o clistate.o gcra.o logging.o \
+    msg.o msgsend.o omping.o rhfunc.o rsfunc.o sfset.o sockfunc.o tlv.o util.o
+	$(CC) $(CFLAGS) $(LDFLAGS) addrfunc.o aiifunc.o cli.o cliprint.o clisig.o clistate.o \
+	    gcra.o logging.o msg.o msgsend.o omping.o rhfunc.o rsfunc.o sfset.o sockfunc.o \
+	    tlv.o util.o -o $@
 
 addrfunc.o: addrfunc.c addrfunc.h logging.h
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -43,6 +44,12 @@ cli.o: cli.c cli.h addrfunc.h omping.h logging.h sockfunc.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 cliprint.o: cliprint.c cliprint.h logging.h
+	$(CC) -c $(CFLAGS) $< -o $@
+
+clisig.o: clisig.c clisig.h
+	$(CC) -c $(CFLAGS) $< -o $@
+
+clistate.o: clistate.c clistate.h logging.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 gcra.o: gcra.c gcra.h util.h

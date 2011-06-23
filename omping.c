@@ -22,16 +22,16 @@
 
 #include <inttypes.h>
 #include <err.h>
-#include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "addrfunc.h"
 #include "aiifunc.h"
 #include "cli.h"
 #include "cliprint.h"
+#include "clisig.h"
+#include "clistate.h"
 #include "logging.h"
 #include "msg.h"
 #include "msgsend.h"
@@ -41,8 +41,6 @@
 #include "sockfunc.h"
 #include "tlv.h"
 #include "util.h"
-
-#define MAX_EXIT_REQUESTS	2
 
 /*
  * Structure with internal omping data
@@ -75,16 +73,6 @@ struct omping_instance {
 	uint16_t	port;
 	uint8_t		ttl;
 };
-
-/*
- * User requested exit of application (usually with SIGINT)
- */
-static int exit_requested;
-
-/*
- * User requested to display overall statistics (SIGINT/SIGUSR1)
- */
-static int display_stats_requested;
 
 /*
  * Function prototypes
@@ -131,11 +119,6 @@ static int	omping_send_client_msgs(struct omping_instance *instance);
 static void	omping_send_receive_loop(struct omping_instance *instance, int timeout_time,
     int final_stats, int allow_auto_exit);
 
-static void	siginfo_handler(int sig);
-static void	sigint_handler(int sig);
-
-static void	register_signal_handlers(void);
-
 /*
  * Functions implementation
  */
@@ -153,7 +136,7 @@ main(int argc, char *argv[])
 
 	omping_instance_create(&instance, argc, argv);
 
-	register_signal_handlers();
+	clisig_register_handlers();
 
 	if (instance.op_mode == OMPING_OP_MODE_SERVER) {
 		final_stats = allow_auto_exit = 0;
@@ -165,7 +148,7 @@ main(int argc, char *argv[])
 
 	if (!instance.single_addr && instance.wait_for_finish_time != 0 &&
 	    instance.op_mode != OMPING_OP_MODE_CLIENT) {
-		exit_requested = 0;
+		clistate_cancel_exit();
 
 		DEBUG_PRINTF("Moving all clients to stop state and server to finishing state");
 		rh_list_put_to_finish_state(&instance.remote_hosts, RH_LFS_BOTH);
@@ -420,8 +403,8 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
 			/* NOTREACHED */
 			break;
 		case -2:
-			if (display_stats_requested) {
-				display_stats_requested = 0;
+			if (clistate_is_stats_display_requested()) {
+				clistate_cancel_stats_display();
 
 				if (instance->op_mode == OMPING_OP_MODE_SHOW_VERSION) {
 					cliprint_final_remote_version(&instance->remote_hosts,
@@ -433,7 +416,7 @@ omping_poll_timeout(struct omping_instance *instance, struct timeval *old_tstamp
 
 				cliprint_nl();
 
-				if (!exit_requested) {
+				if (!clistate_is_exit_requested()) {
 					break;
 				}
 			}
@@ -1156,7 +1139,7 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 		}
 
 		if (clients_res == -2) {
-			if (exit_requested) {
+			if (clistate_is_exit_requested()) {
 				loop_end = 1;
 			}
 
@@ -1182,7 +1165,7 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 			/* NOTREACHED */
 		}
 
-		if (exit_requested) {
+		if (clistate_is_exit_requested()) {
 			loop_end = 1;
 		}
 
@@ -1198,58 +1181,11 @@ omping_send_receive_loop(struct omping_instance *instance, int timeout_time, int
 
 	if (final_stats) {
 		if (instance->op_mode == OMPING_OP_MODE_SHOW_VERSION) {
-			cliprint_final_remote_version(&instance->remote_hosts, instance->hn_max_len);
+			cliprint_final_remote_version(&instance->remote_hosts,
+			    instance->hn_max_len);
 		} else {
 			cliprint_final_stats(&instance->remote_hosts, instance->hn_max_len,
 			    instance->transport_method);
 		}
-	}
-}
-
-/*
- * Register global signal handlers for application. sigaction is used to allow *BSD behavior, where
- * recvmsg, sendto, ... can return EINTR, what signal (Linux) doesn't do (functions are restarted
- * automatically)
- */
-static void
-register_signal_handlers(void)
-{
-	struct sigaction act;
-
-	act.sa_handler = sigint_handler;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-
-	sigaction(SIGINT, &act, NULL);
-
-	act.sa_handler = siginfo_handler;
-#ifdef SIGINFO
-	sigaction(SIGINFO, &act, NULL);
-#endif
-	sigaction(SIGUSR1, &act, NULL);
-}
-
-/*
- * Handler for SIGINFO signal
- */
-static void
-siginfo_handler(int sig)
-{
-	display_stats_requested++;
-}
-
-/*
- * Handler for SIGINT signal
- */
-static void
-sigint_handler(int sig)
-{
-	exit_requested++;
-
-	DEBUG2_PRINTF("Exit requested %d times", exit_requested);
-
-	if (exit_requested > MAX_EXIT_REQUESTS) {
-		signal(SIGINT, SIG_DFL);
-		kill(getpid(), SIGINT);
 	}
 }

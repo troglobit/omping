@@ -37,6 +37,9 @@
 #include "cliprint.h"
 #include "logging.h"
 
+/*
+ * Function prototypes
+ */
 static void	conv_list_addrs(struct aii_list *aii_list, int ip_ver);
 
 static void	conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
