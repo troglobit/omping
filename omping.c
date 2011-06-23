@@ -20,12 +20,9 @@
 
 #include <sys/types.h>
 
-#define __STDC_FORMAT_MACROS
-#define __STDC_LIMIT_MACROS
 #include <inttypes.h>
 #include <err.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
