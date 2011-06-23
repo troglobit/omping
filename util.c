@@ -357,6 +357,24 @@ util_ov_variance(double m2, uint64_t n)
 }
 
 /*
+ * Compute packet loss in percent from number of send and received packets
+ */
+int
+util_packet_loss_percent(uint64_t packet_sent, uint64_t packet_received)
+{
+	int loss;
+
+	if (packet_received > packet_sent) {
+		DEBUG_PRINTF("packet_received > packet_sent");
+		loss = 0;
+	} else {
+		loss = (int)((1.0 - (double)packet_received / (double)packet_sent) * 100.0);
+	}
+
+	return (loss);
+}
+
+/*
  * Return number of miliseconds from timeval structure
  */
 uint64_t
