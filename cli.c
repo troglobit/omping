@@ -38,12 +38,6 @@
 #include "logging.h"
 
 /*
- * Function prototypes
- */
-static void	conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
-    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr);
-
-/*
  * Parse command line.
  * argc and argv are passed from main function. local_ifname will be allocated and filled by name
  * of local ethernet interface. ip_ver will be filled by forced ip version or will
@@ -359,7 +353,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	/*
 	 * Find local addr and copy that. Also remove that from list
 	 */
-	conv_local_addr(aii_list, ai_item, ifa_local, *ip_ver, local_addr, single_addr);
+	aii_ifa_local_to_ai(aii_list, ai_item, ifa_local, *ip_ver, local_addr, single_addr);
 
 	/*
 	 * Store local ifname
@@ -404,60 +398,4 @@ error_usage_exit:
 	exit(1);
 	/* NOTREACHED */
 	return (-1);
-}
-
-/*
- * Convert ifa_local addr to local_addr. If only one remote_host is entered, single_addr is set, if
- * not then ai_local is freed and removed from list.
- */
-static void
-conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
-    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr)
-{
-	size_t addr_len;
-	uint16_t port;
-
-	switch (ifa_local->ifa_addr->sa_family) {
-	case AF_INET:
-		addr_len = sizeof(struct sockaddr_in);
-		port = ((struct sockaddr_in *)&ai_local->sas)->sin_port;
-		break;
-	case AF_INET6:
-		addr_len = sizeof(struct sockaddr_in6);
-		port = ((struct sockaddr_in6 *)&ai_local->sas)->sin6_port;
-		break;
-	default:
-		DEBUG_PRINTF("Internal program error");
-		err(1, "Internal program error");
-		break;
-	}
-
-	memcpy(&local_addr->sas, ifa_local->ifa_addr, addr_len);
-	local_addr->host_name = strdup(ai_local->host_name);
-	if (local_addr->host_name == NULL) {
-		err(1, "Can't alloc memory");
-		/* NOTREACHED */
-	}
-
-	switch (ifa_local->ifa_addr->sa_family) {
-	case AF_INET:
-		((struct sockaddr_in *)&local_addr->sas)->sin_port = port;
-		break;
-	case AF_INET6:
-		((struct sockaddr_in6 *)&local_addr->sas)->sin6_port = port;
-		break;
-	default:
-		DEBUG_PRINTF("Internal program error");
-		err(1, "Internal program error");
-		break;
-	}
-
-	*single_addr = (TAILQ_NEXT(TAILQ_FIRST(aii_list), entries) == NULL);
-
-	if (!*single_addr) {
-		TAILQ_REMOVE(aii_list, ai_local, entries);
-
-		free(ai_local->host_name);
-		free(ai_local);
-	}
 }

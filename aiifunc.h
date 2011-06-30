@@ -62,6 +62,9 @@ extern int		 aii_find_local(const struct aii_list *aii_list, int *ip_ver,
     struct ifaddrs **ifa_list, struct ifaddrs **ifa_local, struct ai_item **ai_item,
     unsigned int if_flags);
 
+extern void		 aii_ifa_local_to_ai(struct aii_list *aii_list, struct ai_item *ai_local,
+    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr);
+
 extern int		 aii_ipbc_to_ai(struct ai_item *ipbc_addr, const char *ipbc_addr_s,
     const char *port_s, const struct ifaddrs *ifa_local);
 
