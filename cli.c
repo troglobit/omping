@@ -51,9 +51,6 @@ static int	conv_params_ipbc(struct ai_item *ipbc_addr, const char *ipbc_addr_s,
 static void	conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr_s,
     const char *port_s);
 
-static int	parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
-    struct aii_list *aii_list);
-
 /*
  * Parse command line.
  * argc and argv are passed from main function. local_ifname will be allocated and filled by name
@@ -92,6 +89,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	double numd;
 	int ch;
 	int force;
+	int no_ai;
 	int num;
 	int res;
 	int rate_limit_time_set;
@@ -349,7 +347,12 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 
 	TAILQ_INIT(aii_list);
 
-	parse_remote_addrs(argc, argv, port_s, *ip_ver, aii_list);
+	no_ai = aii_parse_remote_addrs(aii_list, argc, argv, port_s, *ip_ver);
+	if (no_ai < 1) {
+		warnx("at least one remote addresses should be specified");
+		goto error_usage_exit;
+	}
+
 	*ip_ver = aii_return_ip_ver(aii_list, *ip_ver, mcast_addr_s, port_s);
 
 	if (aii_find_local(aii_list, ip_ver, &ifa_list, &ifa_local, &ai_item, ifa_flags) < 0) {
@@ -610,53 +613,4 @@ conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr
 	if (!af_is_sa_mcast(AF_CAST_SA(&mcast_addr->sas))) {
 		errx(1, "Given address %s is not valid multicast address", mcast_addr_s);
 	}
-}
-
-/*
- * Parse remote addresses. Return list of addresses taken from cli
- */
-static int
-parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
-    struct aii_list *aii_list)
-{
-	struct addrinfo *ai_res;
-	struct ai_item *ai_item;
-	int no_ai;
-	int i;
-
-	no_ai = 0;
-
-	for (i = 0; i < argc; i++) {
-		ai_res = af_host_to_ai(argv[i], port, ip_ver);
-		if (!aii_is_ai_in_list(ai_res, aii_list)) {
-			if (af_ai_deep_is_loopback(ai_res)) {
-				errx(1,"Address %s looks like loopback. Loopback ping is not "
-				    "supported", argv[i]);
-			}
-
-			ai_item = (struct ai_item *)malloc(sizeof(struct ai_item));
-			if (ai_item == NULL) {
-				errx(1, "Can't alloc memory");
-			}
-
-			memset(ai_item, 0, sizeof(struct ai_item));
-			ai_item->ai = ai_res;
-			ai_item->host_name = argv[i];
-
-			TAILQ_INSERT_TAIL(aii_list, ai_item, entries);
-			DEBUG_PRINTF("new address \"%s\" added to list (position %d)", argv[i],
-			    no_ai);
-			no_ai++;
-		} else {
-			freeaddrinfo(ai_res);
-		}
-	}
-
-	if (no_ai < 1) {
-		warnx("at least one remote addresses should be specified");
-		cliprint_usage();
-		exit(1);
-	}
-
-	return (no_ai);
 }

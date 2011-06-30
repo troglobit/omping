@@ -172,6 +172,51 @@ aii_is_ai_in_list(const struct addrinfo *a1, const struct aii_list *aii_list)
 }
 
 /*
+ * Parse remote addresses. argc is number of addressed in argv array. port is string representation
+ * of port, ip_ver can be 4, 6 or 0 and aii_list will contain parsed items.
+ * Return number of added addresses.
+ */
+int
+aii_parse_remote_addrs(struct aii_list *aii_list, int argc, char * const argv[], const char *port,
+    int ip_ver)
+{
+	struct addrinfo *ai_res;
+	struct ai_item *ai_item;
+	int no_ai;
+	int i;
+
+	no_ai = 0;
+
+	for (i = 0; i < argc; i++) {
+		ai_res = af_host_to_ai(argv[i], port, ip_ver);
+		if (!aii_is_ai_in_list(ai_res, aii_list)) {
+			if (af_ai_deep_is_loopback(ai_res)) {
+				errx(1,"Address %s looks like loopback. Loopback ping is not "
+				    "supported", argv[i]);
+			}
+
+			ai_item = (struct ai_item *)malloc(sizeof(struct ai_item));
+			if (ai_item == NULL) {
+				errx(1, "Can't alloc memory");
+			}
+
+			memset(ai_item, 0, sizeof(struct ai_item));
+			ai_item->ai = ai_res;
+			ai_item->host_name = argv[i];
+
+			TAILQ_INSERT_TAIL(aii_list, ai_item, entries);
+			DEBUG_PRINTF("new address \"%s\" added to list (position %d)", argv[i],
+			    no_ai);
+			no_ai++;
+		} else {
+			freeaddrinfo(ai_res);
+		}
+	}
+
+	return (no_ai);
+}
+
+/*
  * Return ip version to use. Algorithm is following:
  * - If user forced ip version, we will return that one.
  * - If user entered mcast addr, we will look, what it supports

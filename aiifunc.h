@@ -63,6 +63,9 @@ extern int		 aii_find_local(const struct aii_list *aii_list, int *ip_ver,
 extern int		 aii_is_ai_in_list(const struct addrinfo *a1,
     const struct aii_list *aii_list);
 
+extern int		 aii_parse_remote_addrs(struct aii_list *aii_list, int argc,
+    char * const argv[], const char *port, int ip_ver);
+
 extern int		 aii_return_ip_ver(struct aii_list *aii_list, int ip_ver,
     const char *mcast_addr, const char *port);
 
