@@ -60,6 +60,42 @@ aii_list_free(struct aii_list *aii_list)
 }
 
 /*
+ * Convert list of addrs of addrinfo to list of addrs of sockaddr_storage. This function will also
+ * correctly free addrinfo(s) in list.
+ */
+void
+aii_list_ai_to_sa(struct aii_list *aii_list, int ip_ver)
+{
+	struct sockaddr_storage tmp_sas;
+	struct addrinfo *ai_i;
+	struct ai_item *ai_item_i;
+	char *hn;
+
+	TAILQ_FOREACH(ai_item_i, aii_list, entries) {
+		hn = (char *)malloc(strlen(ai_item_i->host_name) + 1);
+		if (hn == NULL) {
+			errx(1, "Can't alloc memory");
+		}
+
+		memcpy(hn, ai_item_i->host_name, strlen(ai_item_i->host_name) + 1);
+		ai_item_i->host_name = hn;
+
+		for (ai_i = ai_item_i->ai; ai_i != NULL; ai_i = ai_i->ai_next) {
+			if (af_ai_supported_ipv(ai_i) == ip_ver) {
+				memset(&tmp_sas, 0, sizeof(tmp_sas));
+
+				memcpy(&tmp_sas, ai_i->ai_addr, ai_i->ai_addrlen);
+
+				freeaddrinfo(ai_item_i->ai);
+
+				memcpy(&ai_item_i->sas, &tmp_sas, sizeof(tmp_sas));
+				break;
+			}
+		}
+	}
+}
+
+/*
  * Tries to find local address in aii_list with given ip_ver. if_flags may be set to bit mask with
  * IFF_MULTICAST and/or IFF_BROADCAST and only network interface with that flags will be accepted.
  * Returns 0 on success, otherwise -1.

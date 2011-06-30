@@ -56,6 +56,8 @@ TAILQ_HEAD(aii_list, ai_item);
 
 extern void		 aii_list_free(struct aii_list *aii_list);
 
+extern void		 aii_list_ai_to_sa(struct aii_list *aii_list, int ip_ver);
+
 extern int		 aii_find_local(const struct aii_list *aii_list, int *ip_ver,
     struct ifaddrs **ifa_list, struct ifaddrs **ifa_local, struct ai_item **ai_item,
     unsigned int if_flags);

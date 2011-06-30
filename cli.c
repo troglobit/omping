@@ -40,8 +40,6 @@
 /*
  * Function prototypes
  */
-static void	conv_list_addrs(struct aii_list *aii_list, int ip_ver);
-
 static void	conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
     const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr);
 
@@ -356,7 +354,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	/*
 	 * Change aii_list to struct of sockaddr_storage(s)
 	 */
-	conv_list_addrs(aii_list, *ip_ver);
+	aii_list_ai_to_sa(aii_list, *ip_ver);
 
 	/*
 	 * Find local addr and copy that. Also remove that from list
@@ -406,42 +404,6 @@ error_usage_exit:
 	exit(1);
 	/* NOTREACHED */
 	return (-1);
-}
-
-/*
- * Convert list of addrs of addrinfo to list of addrs of sockaddr_storage. This function will also
- * correctly free addrinfo(s) in list.
- */
-static void
-conv_list_addrs(struct aii_list *aii_list, int ip_ver)
-{
-	struct sockaddr_storage tmp_sas;
-	struct addrinfo *ai_i;
-	struct ai_item *ai_item_i;
-	char *hn;
-
-	TAILQ_FOREACH(ai_item_i, aii_list, entries) {
-		hn = (char *)malloc(strlen(ai_item_i->host_name) + 1);
-		if (hn == NULL) {
-			errx(1, "Can't alloc memory");
-		}
-
-		memcpy(hn, ai_item_i->host_name, strlen(ai_item_i->host_name) + 1);
-		ai_item_i->host_name = hn;
-
-		for (ai_i = ai_item_i->ai; ai_i != NULL; ai_i = ai_i->ai_next) {
-			if (af_ai_supported_ipv(ai_i) == ip_ver) {
-				memset(&tmp_sas, 0, sizeof(tmp_sas));
-
-				memcpy(&tmp_sas, ai_i->ai_addr, ai_i->ai_addrlen);
-
-				freeaddrinfo(ai_item_i->ai);
-
-				memcpy(&ai_item_i->sas, &tmp_sas, sizeof(tmp_sas));
-				break;
-			}
-		}
-	}
 }
 
 /*
