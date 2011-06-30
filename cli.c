@@ -54,9 +54,6 @@ static void	conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char
 static int	parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
     struct aii_list *aii_list);
 
-static int	return_ip_ver(int ip_ver, const char *mcast_addr, const char *port,
-    struct aii_list *aii_list);
-
 /*
  * Parse command line.
  * argc and argv are passed from main function. local_ifname will be allocated and filled by name
@@ -353,7 +350,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	TAILQ_INIT(aii_list);
 
 	parse_remote_addrs(argc, argv, port_s, *ip_ver, aii_list);
-	*ip_ver = return_ip_ver(*ip_ver, mcast_addr_s, port_s, aii_list);
+	*ip_ver = aii_return_ip_ver(aii_list, *ip_ver, mcast_addr_s, port_s);
 
 	if (aii_find_local(aii_list, ip_ver, &ifa_list, &ifa_local, &ai_item, ifa_flags) < 0) {
 		errx(1, "Can't find local address in arguments");
@@ -662,121 +659,4 @@ parse_remote_addrs(int argc, char * const argv[], const char *port, int ip_ver,
 	}
 
 	return (no_ai);
-}
-
-/*
- * Return ip version to use. Algorithm is following:
- * - If user forced ip version, we will return that one.
- * - If user entered mcast addr, we will look, what it supports
- *   - if only one version is supported, we will return that version
- * - otherwise walk addresses and find out, what they support
- *   - test if every addresses support all versions.
- *     - If not, test that version for every other addresses
- *       - if all of them support that version -> return that version
- *       - if not -> return error
- *     - otherwise return 0 (item in find_local_addrinfo will be used but preferably ipv6)
- */
-static int
-return_ip_ver(int ip_ver, const char *mcast_addr, const char *port, struct aii_list *aii_list)
-{
-	struct addrinfo *ai_res;
-	struct ai_item *aip;
-	int mcast_ipver;
-	int ipver_res, ipver_res2;
-
-	if (ip_ver != 0) {
-		DEBUG_PRINTF("user forced forced ip_ver is %d, using that", ip_ver);
-		return (ip_ver);
-	}
-
-	if (mcast_addr != NULL) {
-		ai_res = af_host_to_ai(mcast_addr, port, ip_ver);
-		mcast_ipver = af_ai_deep_supported_ipv(ai_res);
-
-		DEBUG2_PRINTF("mcast_ipver for %s is %d", mcast_addr, mcast_ipver);
-
-		freeaddrinfo(ai_res);
-
-		if (mcast_ipver == -1) {
-			errx(1, "Mcast address %s doesn't support ipv4 or ipv6", mcast_addr);
-		}
-
-		if (mcast_ipver != 0) {
-			DEBUG_PRINTF("mcast address for %s supports only ipv%d, using that",
-			    mcast_addr, mcast_ipver);
-
-			/*
-			 * Walk thru all addresses to find out, what it supports
-			 */
-			TAILQ_FOREACH(aip, aii_list, entries) {
-				ipver_res = af_ai_deep_supported_ipv(aip->ai);
-				DEBUG2_PRINTF("ipver for %s is %d", aip->host_name, ipver_res);
-
-				if (ipver_res == -1) {
-					errx(1, "Host %s doesn't support ipv4 or ipv6",
-					    aip->host_name);
-				}
-
-				if (ipver_res != 0 && ipver_res != mcast_ipver) {
-					errx(1, "Multicast address is ipv%d but host %s supports"
-					    " only ipv%d", mcast_ipver, aip->host_name, ipver_res);
-				}
-			}
-
-			return (mcast_ipver);
-		}
-	}
-
-	ipver_res = 0;
-
-	/*
-	 * Walk thru all addresses to find out, what it supports
-	 */
-	TAILQ_FOREACH(aip, aii_list, entries) {
-		ipver_res = af_ai_deep_supported_ipv(aip->ai);
-		DEBUG2_PRINTF("ipver for %s is %d", aip->host_name, ipver_res);
-
-		if (ipver_res == -1) {
-			errx(1, "Host %s doesn't support ipv4 or ipv6", aip->host_name);
-		}
-
-		if (ipver_res != 0) {
-			break;
-		}
-	}
-
-	if (ipver_res == 0) {
-		/*
-		 * Every address support every version
-		 */
-		DEBUG_PRINTF("Every address support all IP versions");
-		return (0);
-	}
-
-	if (ipver_res != 0) {
-		/*
-		 * Host supports only one version.
-		 * Test availability for that version on all hosts
-		 */
-		TAILQ_FOREACH(aip, aii_list, entries) {
-			ipver_res2 = af_ai_deep_supported_ipv(aip->ai);
-			DEBUG2_PRINTF("ipver for %s is %d", aip->host_name, ipver_res2);
-
-			if (ipver_res2 == -1) {
-				errx(1, "Host %s doesn't support ipv4 or ipv6", aip->host_name);
-			}
-
-			if (ipver_res2 != 0 && ipver_res2 != ipver_res) {
-				/*
-				 * Host doesn't support ip version of other members
-				 */
-				errx(1, "Host %s doesn't support IP version %d", aip->host_name,
-				    ipver_res);
-			}
-		}
-	}
-
-	DEBUG_PRINTF("Every address support ipv%d", ipver_res);
-
-	return (ipver_res);
 }
