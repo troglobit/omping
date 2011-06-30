@@ -45,12 +45,6 @@ static void	conv_list_addrs(struct aii_list *aii_list, int ip_ver);
 static void	conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
     const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr);
 
-static int	conv_params_ipbc(struct ai_item *ipbc_addr, const char *ipbc_addr_s,
-    const char *port_s, const struct ifaddrs *ifa_local);
-
-static void	conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr_s,
-    const char *port_s);
-
 /*
  * Parse command line.
  * argc and argv are passed from main function. local_ifname will be allocated and filled by name
@@ -383,13 +377,13 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 		/*
 		 * Convert mcast addr to something useful
 		 */
-		conv_params_mcast(*ip_ver, mcast_addr, mcast_addr_s, port_s);
+		aii_mcast_to_ai(*ip_ver, mcast_addr, mcast_addr_s, port_s);
 		break;
 	case SF_TM_IPBC:
 		/*
 		 * Convert broadcast addr to something useful
 		 */
-		res = conv_params_ipbc(mcast_addr, mcast_addr_s, port_s, ifa_local);
+		res = aii_ipbc_to_ai(mcast_addr, mcast_addr_s, port_s, ifa_local);
 		if (res == -1) {
 			warnx("illegal broadcast address, -M argument doesn't match with local"
 			    " broadcast address");
@@ -503,114 +497,5 @@ conv_local_addr(struct aii_list *aii_list, struct ai_item *ai_local,
 
 		free(ai_local->host_name);
 		free(ai_local);
-	}
-}
-
-/*
- * Convert ipbc_addr_s to ipbc_addr ai_item.
- * Function returns 0 on success, -1 if given broadcast address is not same as local interface one.
- */
-static int
-conv_params_ipbc(struct ai_item *ipbc_addr, const char *ipbc_addr_s, const char *port_s,
-    const struct ifaddrs *ifa_local)
-{
-	struct addrinfo *ai_res, *ai_i;
-	char ifa_ipbc_addr_s[INET6_ADDRSTRLEN];
-	int ip_ver;
-
-	ip_ver = 4;
-
-	if (ifa_local->ifa_broadaddr == NULL) {
-		errx(1, "selected local interface isn't broadcast aware");
-	}
-
-	if (ipbc_addr_s == NULL) {
-		af_sa_to_str(ifa_local->ifa_broadaddr, ifa_ipbc_addr_s);
-		ipbc_addr_s = ifa_ipbc_addr_s;
-	}
-
-	ipbc_addr->host_name = (char *)malloc(strlen(ipbc_addr_s) + 1);
-	if (ipbc_addr->host_name == NULL) {
-		errx(1, "Can't alloc memory");
-	}
-	memcpy(ipbc_addr->host_name, ipbc_addr_s, strlen(ipbc_addr_s) + 1);
-
-	ai_res = af_host_to_ai(ipbc_addr_s, port_s, ip_ver);
-
-	for (ai_i = ai_res; ai_i != NULL; ai_i = ai_i->ai_next) {
-		if (af_ai_supported_ipv(ai_i) == ip_ver) {
-			memcpy(&ipbc_addr->sas, ai_i->ai_addr, ai_i->ai_addrlen);
-			break;
-		}
-	}
-
-	if (ai_i == NULL) {
-		DEBUG_PRINTF("Internal program error");
-		err(1, "Internal program error");
-	}
-
-	freeaddrinfo(ai_res);
-
-	/*
-	 * Test if interface broadcast addr is same as returned broadcast addr
-	 */
-	if (!af_sockaddr_eq(ifa_local->ifa_broadaddr, AF_CAST_SA(&ipbc_addr->sas))) {
-		return (-1);
-	}
-
-	return (0);
-}
-
-/*
- * Convert mcast_addr_s to mcast_addr ai_item
- */
-static void
-conv_params_mcast(int ip_ver, struct ai_item *mcast_addr, const char *mcast_addr_s,
-    const char *port_s)
-{
-	struct addrinfo *ai_res, *ai_i;
-
-	if (mcast_addr_s == NULL) {
-		switch (ip_ver) {
-		case 4:
-			mcast_addr_s = DEFAULT_MCAST4_ADDR;
-			break;
-		case 6:
-			mcast_addr_s = DEFAULT_MCAST6_ADDR;
-			break;
-		default:
-			DEBUG_PRINTF("Internal program error");
-			err(1, "Internal program error");
-			break;
-		}
-	}
-
-	mcast_addr->host_name = (char *)malloc(strlen(mcast_addr_s) + 1);
-	if (mcast_addr->host_name == NULL) {
-		errx(1, "Can't alloc memory");
-	}
-	memcpy(mcast_addr->host_name, mcast_addr_s, strlen(mcast_addr_s) + 1);
-
-	ai_res = af_host_to_ai(mcast_addr_s, port_s, ip_ver);
-
-	for (ai_i = ai_res; ai_i != NULL; ai_i = ai_i->ai_next) {
-		if (af_ai_supported_ipv(ai_i) == ip_ver) {
-			memcpy(&mcast_addr->sas, ai_i->ai_addr, ai_i->ai_addrlen);
-			break;
-		}
-	}
-
-	if (ai_i == NULL) {
-		DEBUG_PRINTF("Internal program error");
-		err(1, "Internal program error");
-	}
-
-	freeaddrinfo(ai_res);
-
-	/*
-	 * Test if addr is really multicast
-	 */
-	if (!af_is_sa_mcast(AF_CAST_SA(&mcast_addr->sas))) {
-		errx(1, "Given address %s is not valid multicast address", mcast_addr_s);
 	}
 }

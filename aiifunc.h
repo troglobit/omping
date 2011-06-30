@@ -60,8 +60,14 @@ extern int		 aii_find_local(const struct aii_list *aii_list, int *ip_ver,
     struct ifaddrs **ifa_list, struct ifaddrs **ifa_local, struct ai_item **ai_item,
     unsigned int if_flags);
 
+extern int		 aii_ipbc_to_ai(struct ai_item *ipbc_addr, const char *ipbc_addr_s,
+    const char *port_s, const struct ifaddrs *ifa_local);
+
 extern int		 aii_is_ai_in_list(const struct addrinfo *a1,
     const struct aii_list *aii_list);
+
+extern void		 aii_mcast_to_ai(int ip_ver, struct ai_item *mcast_addr,
+    const char *mcast_addr_s, const char *port_s);
 
 extern int		 aii_parse_remote_addrs(struct aii_list *aii_list, int argc,
     char * const argv[], const char *port, int ip_ver);
