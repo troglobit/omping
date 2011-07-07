@@ -399,6 +399,11 @@ aii_parse_remote_addrs(struct aii_list *aii_list, int argc, char * const argv[],
 				    "supported", argv[i]);
 			}
 
+			if (af_ai_deep_is_mcast(ai_res)) {
+				errx(1,"Address %s looks like multicast. To set multicast address "
+				    "use -m parameter", argv[i]);
+			}
+
 			ai_item = (struct ai_item *)malloc(sizeof(struct ai_item));
 			if (ai_item == NULL) {
 				errx(1, "Can't alloc memory");

@@ -89,6 +89,24 @@ af_ai_deep_is_loopback(const struct addrinfo *a1)
 }
 
 /*
+ * Test if given list of addrinfo ai is mcast address or not. Returns > 0 if
+ * addrinfo list ai is multicast, otherwise 0. This one goes to deep.
+ */
+int
+af_ai_deep_is_mcast(const struct addrinfo *a1)
+{
+	const struct addrinfo *a1_i;
+
+	for (a1_i = a1; a1_i != NULL; a1_i = a1_i->ai_next) {
+		if (af_is_sa_mcast(a1_i->ai_addr)) {
+			return (1);
+		}
+	}
+
+	return (0);
+}
+
+/*
  * Deeply test what IP versions are supported on given ai_addr. Can return 4 (only ipv4 is
  * supported), 6 (only ipv6 is supported), 0 (both ipv4 and ipv6 are supported) and -1 (nether ipv4
  * or ipv6 are supported)
