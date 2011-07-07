@@ -115,6 +115,7 @@ aii_find_local(const struct aii_list *aii_list, int *ip_ver, struct ifaddrs **if
 	int res;
 
 	*ifa_local = NULL;
+	ifa_i = NULL;
 	ipv4_fallback = 0;
 
 	if (getifaddrs(&ifa) == -1) {
@@ -188,7 +189,8 @@ aii_find_local(const struct aii_list *aii_list, int *ip_ver, struct ifaddrs **if
 	return (-1);
 
 multiple_match_error:
-	errx(1, "Multiple local interfaces match parameters.");
+	errx(1, "Multiple local interfaces (%s and %s) match parameters.",
+	    ifa_i->ifa_name, (*ifa_local)->ifa_name);
 	return (-1);
 }
 
