@@ -21,6 +21,10 @@
 #ifndef _OMPING_H_
 #define _OMPING_H_
 
+#include "aiifunc.h"
+#include "rhfunc.h"
+#include "sockfunc.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -71,11 +75,47 @@ extern "C" {
 
 #define MAX_MSG_SIZE		65535
 
+/*
+ * Operational mode of omping
+ */
 enum omping_op_mode {
 	OMPING_OP_MODE_NORMAL,
 	OMPING_OP_MODE_CLIENT,
 	OMPING_OP_MODE_SERVER,
 	OMPING_OP_MODE_SHOW_VERSION,
+};
+
+/*
+ * Structure with internal omping data. Should be filled by cli_parse and no longer modified outside
+ * omping_ functions.
+ */
+struct omping_instance {
+	struct ai_item	local_addr;
+	struct ai_item	mcast_addr;
+	struct rh_list	remote_hosts;
+	struct aii_list	remote_addrs;
+	enum omping_op_mode op_mode;
+	enum sf_transport_method transport_method;
+	char		*local_ifname;
+	uint64_t	send_count_queries;
+	int		auto_exit;
+	int		cont_stat;
+	int		dup_buf_items;
+	int		hn_max_len;
+	int		ip_ver;
+	int		mcast_socket;
+	int		quiet;
+	int		rate_limit_time;
+	int		rcvbuf_size;
+	int		single_addr;
+	int		sndbuf_size;
+	int		timeout_time;
+	int		ucast_socket;
+	int		wait_for_finish_time;
+	int		wait_time;
+	unsigned int	rh_no_active;
+	uint16_t	port;
+	uint8_t		ttl;
 };
 
 #ifdef __cplusplus

@@ -43,38 +43,6 @@
 #include "util.h"
 
 /*
- * Structure with internal omping data
- */
-struct omping_instance {
-	struct ai_item	local_addr;
-	struct ai_item	mcast_addr;
-	struct rh_list	remote_hosts;
-	struct aii_list	remote_addrs;
-	enum omping_op_mode op_mode;
-	enum sf_transport_method transport_method;
-	char		*local_ifname;
-	uint64_t	send_count_queries;
-	int		auto_exit;
-	int		cont_stat;
-	int		dup_buf_items;
-	int		hn_max_len;
-	int		ip_ver;
-	int		mcast_socket;
-	int		quiet;
-	int		rate_limit_time;
-	int		rcvbuf_size;
-	int		single_addr;
-	int		sndbuf_size;
-	int		timeout_time;
-	int		ucast_socket;
-	int		wait_for_finish_time;
-	int		wait_time;
-	unsigned int	rh_no_active;
-	uint16_t	port;
-	uint8_t		ttl;
-};
-
-/*
  * Function prototypes
  */
 static int	omping_check_msg_common(const struct msg_decoded *msg_decoded);
@@ -223,13 +191,7 @@ omping_instance_create(struct omping_instance *instance, int argc, char *argv[])
 	bind_port = 0;
 	memset(instance, 0, sizeof(struct omping_instance));
 
-	cli_parse(&instance->remote_addrs, argc, argv, &instance->local_ifname, &instance->ip_ver,
-	    &instance->local_addr, &instance->wait_time, &instance->transport_method,
-	    &instance->mcast_addr, &instance->port, &instance->ttl, &instance->single_addr,
-	    &instance->quiet, &instance->cont_stat, &instance->timeout_time,
-	    &instance->wait_for_finish_time, &instance->dup_buf_items, &instance->rate_limit_time,
-	    &instance->sndbuf_size, &instance->rcvbuf_size, &instance->send_count_queries,
-	    &instance->auto_exit, &instance->op_mode);
+	cli_parse(argc, argv, instance);
 
 	rh_list_create(&instance->remote_hosts, &instance->remote_addrs, instance->dup_buf_items,
 	    instance->rate_limit_time);

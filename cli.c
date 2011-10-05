@@ -39,7 +39,8 @@
 
 /*
  * Parse command line.
- * argc and argv are passed from main function. local_ifname will be allocated and filled by name
+ * argc and argv are passed from main function. instance is omping instance. Instance will be filled
+ * with following items. local_ifname will be allocated and filled by name
  * of local ethernet interface. ip_ver will be filled by forced ip version or will
  * be 0. mcast_addr will be filled by requested mcast address or will be NULL. Port will be filled
  * by requested port (string value) or will be NULL. aii_list will be initialized and requested
@@ -60,12 +61,7 @@
  * STOP state.
  */
 int
-cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local_ifname,
-    int *ip_ver, struct ai_item *local_addr, int *wait_time,
-    enum sf_transport_method *transport_method, struct ai_item *mcast_addr, uint16_t *port,
-    uint8_t *ttl, int *single_addr, int *quiet, int *cont_stat, int *timeout_time,
-    int *wait_for_finish_time, int *dup_buf_items, int *rate_limit_time, int *sndbuf_size,
-    int *rcvbuf_size, uint64_t *send_count_queries,int *auto_exit, enum omping_op_mode *op_mode)
+cli_parse(int argc, char * const argv[], struct omping_instance *instance)
 {
 	struct ai_item *ai_item;
 	struct ifaddrs *ifa_list, *ifa_local;
@@ -83,24 +79,24 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	int wait_for_finish_time_set;
 	unsigned int ifa_flags;
 
-	*auto_exit = 1;
-	*cont_stat = 0;
-	*dup_buf_items = MIN_DUP_BUF_ITEMS;
-	*ip_ver = 0;
-	*local_ifname = NULL;
+	instance->auto_exit = 1;
+	instance->cont_stat = 0;
+	instance->dup_buf_items = MIN_DUP_BUF_ITEMS;
+	instance->ip_ver = 0;
+	instance->local_ifname = NULL;
 	mcast_addr_s = NULL;
-	*op_mode = OMPING_OP_MODE_NORMAL;
-	*quiet = 0;
-	*send_count_queries = 0;
-	*sndbuf_size = 0;
-	*single_addr = 0;
-	*rate_limit_time = 0;
-	*rcvbuf_size = 0;
-	*timeout_time = 0;
-	*ttl = DEFAULT_TTL;
-	*transport_method = SF_TM_ASM;
-	*wait_time = DEFAULT_WAIT_TIME;
-	*wait_for_finish_time = 0;
+	instance->op_mode = OMPING_OP_MODE_NORMAL;
+	instance->quiet = 0;
+	instance->send_count_queries = 0;
+	instance->sndbuf_size = 0;
+	instance->single_addr = 0;
+	instance->rate_limit_time = 0;
+	instance->rcvbuf_size = 0;
+	instance->timeout_time = 0;
+	instance->ttl = DEFAULT_TTL;
+	instance->transport_method = SF_TM_ASM;
+	instance->wait_time = DEFAULT_WAIT_TIME;
+	instance->wait_for_finish_time = 0;
 
 	force = 0;
 	ifa_flags = IFF_MULTICAST;
@@ -114,25 +110,25 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	while ((ch = getopt(argc, argv, "46CDEFqVvc:i:M:m:O:p:R:r:S:T:t:w:")) != -1) {
 		switch (ch) {
 		case '4':
-			*ip_ver = 4;
+			instance->ip_ver = 4;
 			break;
 		case '6':
-			*ip_ver = 6;
+			instance->ip_ver = 6;
 			break;
 		case 'C':
-			(*cont_stat)++;
+			instance->cont_stat++;
 			break;
 		case 'D':
-			*dup_buf_items = 0;
+			instance->dup_buf_items = 0;
 			break;
 		case 'E':
-			*auto_exit = 0;
+			instance->auto_exit = 0;
 			break;
 		case 'F':
 			force++;
 			break;
 		case 'q':
-			(*quiet)++;
+			instance->quiet++;
 			break;
 		case 'V':
 			show_ver++;
@@ -146,7 +142,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				warnx("illegal number, -c argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*send_count_queries= (uint64_t)numd;
+			instance->send_count_queries= (uint64_t)numd;
 			break;
 		case 'i':
 			numd = strtod(optarg, &ep);
@@ -154,17 +150,17 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				warnx("illegal number, -i argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*wait_time = (int)(numd * 1000.0);
+			instance->wait_time = (int)(numd * 1000.0);
 			break;
 		case 'M':
 			if (strcmp(optarg, "asm") == 0) {
-				*transport_method = SF_TM_ASM;
+				instance->transport_method = SF_TM_ASM;
 				ifa_flags = IFF_MULTICAST;
 			} else if (strcmp(optarg, "ssm") == 0 && sf_is_ssm_supported()) {
-				*transport_method = SF_TM_SSM;
+				instance->transport_method = SF_TM_SSM;
 				ifa_flags = IFF_MULTICAST;
 			} else if (strcmp(optarg, "ipbc") == 0 && sf_is_ipbc_supported()) {
-				*transport_method = SF_TM_IPBC;
+				instance->transport_method = SF_TM_IPBC;
 				ifa_flags = IFF_BROADCAST;
 			} else {
 				warnx("illegal parameter, -M argument -- %s", optarg);
@@ -176,7 +172,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 			break;
 		case 'O':
 			if (strcmp(optarg, "normal") == 0) {
-				*op_mode = OMPING_OP_MODE_NORMAL;
+				instance->op_mode = OMPING_OP_MODE_NORMAL;
 			/*
 			 * Temporarily disabled
 			 *
@@ -184,7 +180,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				*op_mode = OMPING_OP_MODE_SERVER;
 			*/
 			} else if (strcmp(optarg, "client") == 0) {
-				*op_mode = OMPING_OP_MODE_CLIENT;
+				instance->op_mode = OMPING_OP_MODE_CLIENT;
 			} else {
 				warnx("illegal parameter, -O argument -- %s", optarg);
 				goto error_usage_exit;
@@ -199,7 +195,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				warnx("illegal number, -R argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*rcvbuf_size = (int)numd;
+			instance->rcvbuf_size = (int)numd;
 			break;
 		case 'r':
 			numd = strtod(optarg, &ep);
@@ -207,7 +203,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				warnx("illegal number, -r argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*rate_limit_time = (int)(numd * 1000.0);
+			instance->rate_limit_time = (int)(numd * 1000.0);
 			rate_limit_time_set = 1;
 			break;
 		case 'S':
@@ -216,7 +212,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				warnx("illegal number, -S argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*sndbuf_size = (int)numd;
+			instance->sndbuf_size = (int)numd;
 			break;
 		case 't':
 			num = strtol(optarg, &ep, 10);
@@ -224,7 +220,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				warnx("illegal number, -t argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*ttl = num;
+			instance->ttl = num;
 			break;
 		case 'T':
 			numd = strtod(optarg, &ep);
@@ -232,7 +228,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				warnx("illegal number, -T argument -- %s", optarg);
 				goto error_usage_exit;
 			}
-			*timeout_time = (int)(numd * 1000.0);
+			instance->timeout_time = (int)(numd * 1000.0);
 			break;
 		case 'w':
 			numd = strtod(optarg, &ep);
@@ -241,7 +237,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 				goto error_usage_exit;
 			}
 			wait_for_finish_time_set = 1;
-			*wait_for_finish_time = (int)(numd * 1000.0);
+			instance->wait_for_finish_time = (int)(numd * 1000.0);
 			break;
 		case '?':
 			goto error_usage_exit;
@@ -263,119 +259,123 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	}
 
 	if (show_ver > 1) {
-		if (*op_mode != OMPING_OP_MODE_NORMAL) {
+		if (instance->op_mode != OMPING_OP_MODE_NORMAL) {
 			warnx("op_mode must be set to normal for remote version display.");
 			goto error_usage_exit;
 		}
 
-		*op_mode = OMPING_OP_MODE_SHOW_VERSION;
+		instance->op_mode = OMPING_OP_MODE_SHOW_VERSION;
 	}
 
 	if (force < 1) {
-		if (*wait_time < DEFAULT_WAIT_TIME) {
+		if (instance->wait_time < DEFAULT_WAIT_TIME) {
 			warnx("illegal nmber, -i argument %u ms < %u ms. Use -F to force.",
-			    *wait_time, DEFAULT_WAIT_TIME);
+			    instance->wait_time, DEFAULT_WAIT_TIME);
 			goto error_usage_exit;
 		}
 
-		if (*ttl < DEFAULT_TTL) {
+		if (instance->ttl < DEFAULT_TTL) {
 			warnx("illegal nmber, -t argument %u < %u. Use -F to force.",
-			    *ttl, DEFAULT_TTL);
+			    instance->ttl, DEFAULT_TTL);
 			goto error_usage_exit;
 		}
 	}
 
 	if (force < 2) {
-		if (*wait_time == 0) {
+		if (instance->wait_time == 0) {
 			warnx("illegal nmber, -i argument %u ms < 1 ms. Use -FF to force.",
-			    *wait_time);
+			    instance->wait_time);
 			goto error_usage_exit;
 		}
 	}
 
-	if (*transport_method == SF_TM_IPBC) {
-		if (*ip_ver == 6) {
+	if (instance->transport_method == SF_TM_IPBC) {
+		if (instance->ip_ver == 6) {
 			warnx("illegal transport method, -M argument ipbc is mutually exclusive "
 			    "with -6 option");
 			goto error_usage_exit;
 		}
 
-		*ip_ver = 4;
+		instance->ip_ver = 4;
 	}
 
 	/*
 	 * Computed params
 	 */
 	if (!wait_for_finish_time_set) {
-		*wait_for_finish_time = *wait_time * DEFAULT_WFF_TIME_MUL;
-		if (*wait_for_finish_time < DEFAULT_WAIT_TIME) {
-			*wait_for_finish_time = DEFAULT_WAIT_TIME;
+		instance->wait_for_finish_time = instance->wait_time * DEFAULT_WFF_TIME_MUL;
+		if (instance->wait_for_finish_time < DEFAULT_WAIT_TIME) {
+			instance->wait_for_finish_time = DEFAULT_WAIT_TIME;
 		}
 	}
 
-	if (*wait_time == 0) {
-		*dup_buf_items = 0;
+	if (instance->wait_time == 0) {
+		instance->dup_buf_items = 0;
 	} else {
 		/*
 		 * + 1 is for eliminate trucate errors
 		 */
-		*dup_buf_items = ((DUP_BUF_SECS * 1000) / *wait_time) + 1;
+		instance->dup_buf_items = ((DUP_BUF_SECS * 1000) / instance->wait_time) + 1;
 
-		if (*dup_buf_items < MIN_DUP_BUF_ITEMS) {
-			*dup_buf_items = MIN_DUP_BUF_ITEMS;
+		if (instance->dup_buf_items < MIN_DUP_BUF_ITEMS) {
+			instance->dup_buf_items = MIN_DUP_BUF_ITEMS;
 		}
 	}
 
 	if (!rate_limit_time_set) {
-		*rate_limit_time = *wait_time;
+		instance->rate_limit_time = instance->wait_time;
 
 	}
 
-	TAILQ_INIT(aii_list);
+	TAILQ_INIT(&instance->remote_addrs);
 
-	no_ai = aii_parse_remote_addrs(aii_list, argc, argv, port_s, *ip_ver);
+	no_ai = aii_parse_remote_addrs(&instance->remote_addrs, argc, argv, port_s,
+	    instance->ip_ver);
 	if (no_ai < 1) {
 		warnx("at least one remote addresses should be specified");
 		goto error_usage_exit;
 	}
 
-	*ip_ver = aii_return_ip_ver(aii_list, *ip_ver, mcast_addr_s, port_s);
+	instance->ip_ver = aii_return_ip_ver(&instance->remote_addrs, instance->ip_ver,
+	    mcast_addr_s, port_s);
 
-	if (aii_find_local(aii_list, ip_ver, &ifa_list, &ifa_local, &ai_item, ifa_flags) < 0) {
+	if (aii_find_local(&instance->remote_addrs, &instance->ip_ver, &ifa_list, &ifa_local,
+	    &ai_item, ifa_flags) < 0) {
 		errx(1, "Can't find local address in arguments");
 	}
 
 	/*
 	 * Change aii_list to struct of sockaddr_storage(s)
 	 */
-	aii_list_ai_to_sa(aii_list, *ip_ver);
+	aii_list_ai_to_sa(&instance->remote_addrs, instance->ip_ver);
 
 	/*
 	 * Find local addr and copy that. Also remove that from list
 	 */
-	aii_ifa_local_to_ai(aii_list, ai_item, ifa_local, *ip_ver, local_addr, single_addr);
+	aii_ifa_local_to_ai(&instance->remote_addrs, ai_item, ifa_local, instance->ip_ver,
+	    &instance->local_addr, &instance->single_addr);
 
 	/*
 	 * Store local ifname
 	 */
-	*local_ifname = strdup(ifa_local->ifa_name);
-	if (*local_ifname == NULL) {
+	instance->local_ifname = strdup(ifa_local->ifa_name);
+	if (instance->local_ifname == NULL) {
 		errx(1, "Can't alloc memory");
 	}
 
-	switch (*transport_method) {
+	switch (instance->transport_method) {
 	case SF_TM_ASM:
 	case SF_TM_SSM:
 		/*
 		 * Convert mcast addr to something useful
 		 */
-		aii_mcast_to_ai(*ip_ver, mcast_addr, mcast_addr_s, port_s);
+		aii_mcast_to_ai(instance->ip_ver, &instance->mcast_addr, mcast_addr_s, port_s);
 		break;
 	case SF_TM_IPBC:
 		/*
 		 * Convert broadcast addr to something useful
 		 */
-		res = aii_ipbc_to_ai(mcast_addr, mcast_addr_s, port_s, ifa_local);
+		res = aii_ipbc_to_ai(&instance->mcast_addr, mcast_addr_s, port_s, ifa_local);
 		if (res == -1) {
 			warnx("illegal broadcast address, -M argument doesn't match with local"
 			    " broadcast address");
@@ -387,7 +387,7 @@ cli_parse(struct aii_list *aii_list, int argc, char * const argv[], char **local
 	/*
 	 * Assign port from mcast_addr
 	 */
-	*port = af_sa_port(AF_CAST_SA(&mcast_addr->sas));
+	instance->port = af_sa_port(AF_CAST_SA(&instance->mcast_addr.sas));
 
 	freeifaddrs(ifa_list);
 

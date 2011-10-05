@@ -29,13 +29,7 @@
 extern "C" {
 #endif
 
-extern int	cli_parse(struct aii_list *aii_list, int argc, char * const argv[],
-    char **local_ifname, int *ip_ver, struct ai_item *local_addr, int *wait_time,
-    enum sf_transport_method *transport_method, struct ai_item *mcast_addr,
-    uint16_t *port, uint8_t *ttl, int *single_addr, int *quiet, int *cont_stat,
-    int *timeout_time, int *wait_for_finish_time, int *dup_buf_items, int *rate_limit_time,
-    int *sndbuf_size, int *rcvbuf_size, uint64_t *send_count_queries, int *auto_exit,
-    enum omping_op_mode *op_mode);
+extern int	cli_parse(int argc, char * const argv[], struct omping_instance *instance);
 
 #ifdef __cplusplus
 }
