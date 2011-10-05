@@ -504,30 +504,6 @@ error_unknown_msg_type:
 }
 
 /*
- * Function to test if packet is duplicate. ci is client item information, seq is sequential number
- * and cast_type is type of packet received (unicast/multicast/broadcast).
- * Function returns 0 if packet is not duplicate, otherwise 1.
- */
-static int
-is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, enum sf_cast_type cast_type)
-{
-	int cast_index;
-	int res;
-
-	cast_index = (cast_type == SF_CT_UNI ? 0 : 1);
-
-	if (ci->dup_buffer[cast_index][seq % ci->dup_buf_items] == seq) {
-		res = 1;
-	} else {
-		ci->dup_buffer[cast_index][seq % ci->dup_buf_items] = seq;
-
-		res = 0;
-	}
-
-	return (res);
-}
-
-/*
  * Process answer message. Instance is omping instance, msg is received message with msg_len length,
  * msg_decoded is decoded message, from is address of sender. ttl is Time-To-Live of packet. If ttl
  * is 0, it means that it was not possible to find out ttl. cast_type is type of packet received
@@ -601,7 +577,8 @@ omping_process_answer_msg(struct omping_instance *instance, const char *msg, siz
 	is_dup = 0;
 
 	if (instance->dup_buf_items > 0) {
-		is_dup = is_dup_packet(&rh_item->client_info, msg_decoded->seq_num, cast_type);
+		is_dup = rh_ci_is_dup_packet(&rh_item->client_info, msg_decoded->seq_num,
+		    cast_index);
 	}
 
 	if (is_dup) {

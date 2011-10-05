@@ -116,6 +116,9 @@ struct rh_item {
  */
 TAILQ_HEAD(rh_list, rh_item);
 
+extern int		rh_ci_is_dup_packet(const struct rh_item_ci *ci, uint32_t seq,
+    int cast_index);
+
 extern struct rh_item	*rh_list_add_item(struct rh_list *rh_list, struct ai_item *addr,
     int dup_buf_items, int rate_limit_time);
 

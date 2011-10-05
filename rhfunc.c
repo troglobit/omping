@@ -36,6 +36,27 @@
 #include "omping.h"
 
 /*
+ * Function to test if packet is duplicate. ci is client item information, seq is sequential number
+ * and cast_index is type of packet received (unicast = 0, multicast/broadcast = 1).
+ * Function returns 0 if packet is not duplicate, otherwise 1.
+ */
+int
+rh_ci_is_dup_packet(const struct rh_item_ci *ci, uint32_t seq, int cast_index)
+{
+	int res;
+
+	if (ci->dup_buffer[cast_index][seq % ci->dup_buf_items] == seq) {
+		res = 1;
+	} else {
+		ci->dup_buffer[cast_index][seq % ci->dup_buf_items] = seq;
+
+		res = 0;
+	}
+
+	return (res);
+}
+
+/*
  * Add item to remote host list. Addr pointer is stored in rh_item. On fail, function returns NULL,
  * otherwise newly allocated rh_item is returned. dup_buf_items is number of items to be stored in
  * duplicate buffers. rate_limit_time is maximum time between two received packets.
