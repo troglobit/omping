@@ -283,6 +283,33 @@ msg_decode(const char *msg, size_t msg_len, struct msg_decoded *decoded)
 }
 
 /*
+ * Checks if msg contains prefix of mcast_addr. msg is message buffer, msg_len is size of buffer.
+ *
+ * Returned value is 0 if msg doesn't contain prefix, otherwise 1
+ */
+int
+msg_has_prefix(const char *msg, size_t msg_len, const struct sockaddr_storage *mcast_addr)
+{
+	struct tlv_iterator tlv_iter;
+	int has_prefix;
+
+	has_prefix = 0;
+
+	tlv_iter_init(msg, msg_len, &tlv_iter);
+	while (tlv_iter_next(&tlv_iter) == 0) {
+		if (tlv_iter_get_type(&tlv_iter) == TLV_OPT_TYPE_MCAST_PREFIX) {
+			if (tlv_iter_pref_eq(&tlv_iter, mcast_addr)) {
+				has_prefix = 1;
+
+				break;
+			}
+		}
+	}
+
+	return (has_prefix);
+}
+
+/*
  * Create init message. msg is pointer to buffer where to store result message. msg_len is size of
  * buffer. mcast_addr is required multicast address. client_id is client ID to store in message with
  * length client_id_len.

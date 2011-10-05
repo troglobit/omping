@@ -680,8 +680,6 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
     struct timeval rp_timestamp)
 {
 	struct rh_item *rh_item;
-	struct tlv_iterator tlv_iter;
-	int pref_found;
 
 	rh_item = rh_list_find(&instance->remote_hosts, (const struct sockaddr *)from);
 	if (rh_item == NULL) {
@@ -705,20 +703,7 @@ omping_process_init_msg(struct omping_instance *instance, const char *msg, size_
 		    msg_decoded, from, 0, 1, NULL, 0));
 	}
 
-	pref_found = 0;
-
-	tlv_iter_init(msg, msg_len, &tlv_iter);
-	while (tlv_iter_next(&tlv_iter) == 0) {
-		if (tlv_iter_get_type(&tlv_iter) == TLV_OPT_TYPE_MCAST_PREFIX) {
-			if (tlv_iter_pref_eq(&tlv_iter, &instance->mcast_addr.sas)) {
-				pref_found = 1;
-
-				break;
-			}
-		}
-	}
-
-	if (!pref_found) {
+	if (!msg_has_prefix(msg, msg_len, &instance->mcast_addr.sas)) {
 		DEBUG_PRINTF("Can't find required prefix");
 
 		return (ms_response(instance->ucast_socket, &instance->mcast_addr.sas, msg_decoded,

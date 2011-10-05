@@ -68,6 +68,9 @@ extern size_t	msg_answer_create(const char *orig_msg, size_t orig_msg_len, char 
 
 extern void	msg_decode(const char *msg, size_t msg_len, struct msg_decoded *decoded);
 
+extern int	msg_has_prefix(const char *msg, size_t msg_len,
+    const struct sockaddr_storage *mcast_addr);
+
 extern size_t	msg_init_create(char *msg, size_t msg_len, int req_si,
     const struct sockaddr_storage *mcast_addr, const char *client_id, size_t client_id_len);
 
