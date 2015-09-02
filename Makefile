@@ -101,6 +101,12 @@ install-strip:
 TAGS:
 	ctags *.[ch]
 
+clean:
+	rm -f $(PROGRAM_NAME) *.o
+
+distclean: clean
+	rm -f *~ *.bak *.map *.d DEADJOE *.gdb *.elf core core.*
+
 dist:
 	mkdir -p $(PROGRAM_NAME)-$(VERSION_SH)
 	cp AUTHORS COPYING Makefile *.[ch] $(PROGRAM_NAME).8 $(PROGRAM_NAME).spec $(PROGRAM_NAME)-$(VERSION_SH)/
@@ -109,6 +115,3 @@ dist:
 
 installdirs:
 	mkdir -p "$(DESTDIR)/bin"
-
-clean:
-	rm -f $(PROGRAM_NAME) *.o
