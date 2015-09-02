@@ -1,0 +1,8 @@
+Open Multicast Ping (omping) for Debian/Ubuntu
+----------------------------------------------
+
+Omping is a tool for testing IPv4/IPv6 multicast functionality in a LAN.
+
+
+
+ -- Joachim Nilsson <troglobit@gmail.com>, Thu,  3 Sep 2015 00:13:26 +0200

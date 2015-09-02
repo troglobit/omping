@@ -1,0 +1,86 @@
+omping (0.0.5-1) unstable; urgency=low
+
+  * First Debian package, based on the last GIT sources from Fedora HOSTED,
+    git://git.fedorahosted.org/git/omping.git
+  * New maintainer at GitHub, https://github.com/troglobit/omping
+
+ -- Joachim Nilsson <troglobit@gmail.com>  Thu, 03 Sep 2015 00:33:39 +0200
+
+omping (0.0.4-6) unstable; urgency=low
+
+  * Mass rebuild 2014-01-24
+
+ -- Daniel Mach <dmach@redhat.com>  Fri Jan 24 2014
+
+omping (0.0.4-5) unstable; urgency=low
+
+  * Mass rebuild 2013-12-27
+
+ -- Daniel Mach <dmach@redhat.com>  Fri Dec 27 2013
+
+omping (0.0.4-4) unstable; urgency=low
+
+  * Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
+
+ -- Fedora Release Engineering <rel-eng@lists.fedoraproject.org>  Thu Feb 14 2013
+
+omping (0.0.4-3) unstable; urgency=low
+
+  * Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
+
+ -- Fedora Release Engineering <rel-eng@lists.fedoraproject.org>  Fri Jul 20 2012
+
+omping (0.0.4-2) unstable; urgency=low
+
+  * Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
+
+ -- Fedora Release Engineering <rel-eng@lists.fedoraproject.org>  Fri Jan 13 2012
+
+omping (0.0.4-1) unstable; urgency=low
+
+  * Update to version 0.0.4
+
+ -- Jan Friesse <jfriesse@redhat.com>  Mon Jun 22 2011
+
+omping (0.0.3-1) unstable; urgency=low
+
+  * Update to version 0.0.3
+
+ -- Jan Friesse <jfriesse@redhat.com>  Wed Apr 14 2011
+
+omping (0.0.2-3) unstable; urgency=low
+
+  * Resolves rhbz#696509
+
+ -- Jan Friesse <jfriesse@redhat.com>  Wed Apr 14 2011
+
+omping (0.0.2-2) unstable; urgency=low
+
+  * Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
+
+ -- Fedora Release Engineering <rel-eng@lists.fedoraproject.org>  Tue Feb 08 2011
+
+omping (0.0.2-1) unstable; urgency=low
+
+  * Update to upstream release 0.0.2
+
+ -- Jan Friesse <jfriesse@redhat.com>  Fri Jan 22 2011
+
+omping (0.0.1-3) unstable; urgency=low
+
+  * Display error if only one host is specified
+
+ -- Jan Friesse <jfriesse@redhat.com>  Fri Nov 30 2010
+
+omping (0.0.1-2) unstable; urgency=low
+
+  * Change hard coded prefix path to macro
+
+ -- Jan Friesse <jfriesse@redhat.com>  Fri Nov 24 2010
+
+omping (0.0.1-1) unstable; urgency=low
+
+  * Initial package for Fedora
+
+ -- Jan Friesse <jfriesse@redhat.com>  Fri Nov 19 2010
+

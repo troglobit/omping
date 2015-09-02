@@ -107,6 +107,9 @@ clean:
 distclean: clean
 	rm -f *~ *.bak *.map *.d DEADJOE *.gdb *.elf core core.*
 
+package:
+	dpkg-buildpackage -b -uc -tc
+
 dist:
 	mkdir -p $(PROGRAM_NAME)-$(VERSION_SH)
 	cp AUTHORS COPYING Makefile *.[ch] $(PROGRAM_NAME).8 $(PROGRAM_NAME).spec $(PROGRAM_NAME)-$(VERSION_SH)/
