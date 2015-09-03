@@ -18,9 +18,11 @@ EXEC             = omping
 OBJS             = addrfunc.o aiifunc.o cli.o cliprint.o clisig.o clistate.o gcra.o	\
 		   logging.o msg.o msgsend.o omping.o rhfunc.o rsfunc.o sfset.o		\
 		   sockfunc.o tlv.o util.o
+DEPS            := $(OBJS:.o=.d)
 PKG              = $(EXEC)-$(VERSION)
 ARCHIVE          = $(PKG).tar.gz
-CFLAGS          += -W -Wall -Wshadow -Wp,-D_FORTIFY_SOURCE=2 -O2
+CFLAGS          += -O2
+CPPFLAGS        += -W -Wall -Wshadow -Wp,-D_FORTIFY_SOURCE=2
 
 PREFIX          ?= /usr/local
 BINDIR          ?= $(PREFIX)/bin
@@ -37,31 +39,14 @@ all-illumos:
 	@CPPFLAGS="-D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D__EXTENSIONS__=1" \
 	    LDLIBS="-lsocket -lnsl" $(MAKE) all
 
+# Pretty printing and GCC -M for auto dep files
 .c.o:
 	@printf "  CC      $@\n"
-	@$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -c -MMD -MP -o $@ $<
 
 $(EXEC): $(OBJS)
 	@printf "  LINK    $@\n"
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
-
-addrfunc.o: addrfunc.c addrfunc.h logging.h
-aiifunc.o: aiifunc.c addrfunc.h aiifunc.h logging.h
-cli.o: cli.c cli.h addrfunc.h omping.h logging.h sockfunc.h
-cliprint.o: cliprint.c cliprint.h logging.h
-clisig.o: clisig.c clisig.h
-clistate.o: clistate.c clistate.h logging.h
-gcra.o: gcra.c gcra.h util.h
-logging.o: logging.c logging.h
-msg.o: msg.c msg.h logging.h omping.h tlv.h
-msgsend.o: msgsend.c addrfunc.h logging.h msg.h msgsend.h omping.h rsfunc.h util.h
-omping.o: omping.c addrfunc.h cli.h logging.h msg.h msgsend.h omping.h rhfunc.h rsfunc.h sockfunc.h tlv.h util.h
-rhfunc.o: rhfunc.c rhfunc.h addrfunc.h util.h
-rsfunc.o: rsfunc.c rsfunc.h addrfunc.h logging.h util.h
-sfset.o: sfset.c logging.h sfset.h
-sockfunc.o: sockfunc.c addrfunc.h logging.h sfset.h sockfunc.h
-tlv.o: tlv.c logging.h addrfunc.h util.h
-util.o: util.c util.h logging.h
 
 install: $(EXEC)
 	@test -z "$(DESTDIR)/$(BINDIR)" || mkdir -p "$(DESTDIR)/$(BINDIR)"
@@ -96,3 +81,6 @@ dist:
 
 installdirs:
 	@mkdir -p "$(DESTDIR)/bin"
+
+# Include automatically generated rules
+-include $(DEPS)
