@@ -43,7 +43,7 @@ for adventurous users.
 **Source**
 
 For stable version, download the latest official release from Fedora:
-https://fedorahosted.org/releases/o/m/omping/omping-0.0.4.tar.gz.
+<https://fedorahosted.org/releases/o/m/omping/omping-0.0.4.tar.gz>
 
 For latest git, use
 
