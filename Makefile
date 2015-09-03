@@ -12,109 +12,87 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-CFLAGS += -W -Wall -Wshadow -Wp,-D_FORTIFY_SOURCE=2 -O2
-PREFIX ?= /usr/local
-BINDIR ?= $(PREFIX)/bin
-MANDIR ?= $(PREFIX)/share/man
+# VERSION         ?= $(shell git tag -l | tail -1)
+VERSION         := `grep PROGRAM_VERSION omping.h | head -n 1 | sed 's/^.*\"\(.*\)\"/\1/'`
+EXEC             = omping
+OBJS             = addrfunc.o aiifunc.o cli.o cliprint.o clisig.o clistate.o gcra.o	\
+		   logging.o msg.o msgsend.o omping.o rhfunc.o rsfunc.o sfset.o		\
+		   sockfunc.o tlv.o util.o
+PKG              = $(EXEC)-$(VERSION)
+ARCHIVE          = $(PKG).tar.gz
+CFLAGS          += -W -Wall -Wshadow -Wp,-D_FORTIFY_SOURCE=2 -O2
 
-INSTALL_PROGRAM ?= install
+PREFIX          ?= /usr/local
+BINDIR          ?= $(PREFIX)/bin
+MANDIR          ?= $(PREFIX)/share/man
 
-PROGRAM_NAME = omping
-VERSION_SH = `grep PROGRAM_VERSION omping.h | head -n 1 | sed 's/^.*\"\(.*\)\"/\1/'`
+RM               = rm -f
+CC              ?= $(CROSS)$(CC)
+INSTALL         ?= install
 
-all: $(PROGRAM_NAME)
+
+all: $(EXEC)
 
 all-illumos:
-	CFLAGS="$(CFLAGS) -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D__EXTENSIONS__=1" \
-	    LDFLAGS="$(LDFLAGS) -lsocket -lnsl" $(MAKE) all
+	@CPPFLAGS="-D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED=1 -D__EXTENSIONS__=1" \
+	    LDLIBS="-lsocket -lnsl" $(MAKE) all
 
-$(PROGRAM_NAME): addrfunc.o aiifunc.o cli.o cliprint.o clisig.o clistate.o gcra.o logging.o \
-    msg.o msgsend.o omping.o rhfunc.o rsfunc.o sfset.o sockfunc.o tlv.o util.o
-	$(CC) $(CFLAGS) $(LDFLAGS) addrfunc.o aiifunc.o cli.o cliprint.o clisig.o clistate.o \
-	    gcra.o logging.o msg.o msgsend.o omping.o rhfunc.o rsfunc.o sfset.o sockfunc.o \
-	    tlv.o util.o -o $@
+.c.o:
+	@printf "  CC      $@\n"
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+$(EXEC): $(OBJS)
+	@printf "  LINK    $@\n"
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 addrfunc.o: addrfunc.c addrfunc.h logging.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 aiifunc.o: aiifunc.c addrfunc.h aiifunc.h logging.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 cli.o: cli.c cli.h addrfunc.h omping.h logging.h sockfunc.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 cliprint.o: cliprint.c cliprint.h logging.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 clisig.o: clisig.c clisig.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 clistate.o: clistate.c clistate.h logging.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 gcra.o: gcra.c gcra.h util.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 logging.o: logging.c logging.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 msg.o: msg.c msg.h logging.h omping.h tlv.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 msgsend.o: msgsend.c addrfunc.h logging.h msg.h msgsend.h omping.h rsfunc.h util.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 omping.o: omping.c addrfunc.h cli.h logging.h msg.h msgsend.h omping.h rhfunc.h rsfunc.h sockfunc.h tlv.h util.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 rhfunc.o: rhfunc.c rhfunc.h addrfunc.h util.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 rsfunc.o: rsfunc.c rsfunc.h addrfunc.h logging.h util.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 sfset.o: sfset.c logging.h sfset.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 sockfunc.o: sockfunc.c addrfunc.h logging.h sfset.h sockfunc.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 tlv.o: tlv.c logging.h addrfunc.h util.h
-	$(CC) -c $(CFLAGS) $< -o $@
-
 util.o: util.c util.h logging.h
-	$(CC) -c $(CFLAGS) $< -o $@
 
-install: $(PROGRAM_NAME)
-	test -z "$(DESTDIR)/$(BINDIR)" || mkdir -p "$(DESTDIR)/$(BINDIR)"
-	$(INSTALL_PROGRAM) -c $< $(DESTDIR)/$(BINDIR)
-	test -z "$(DESTDIR)/$(MANDIR)/man8" || mkdir -p "$(DESTDIR)/$(MANDIR)/man8"
-	$(INSTALL_PROGRAM) -c -m 0644 $<.8 $(DESTDIR)/$(MANDIR)/man8
+install: $(EXEC)
+	@test -z "$(DESTDIR)/$(BINDIR)" || mkdir -p "$(DESTDIR)/$(BINDIR)"
+	@$(INSTALL) -c $< $(DESTDIR)/$(BINDIR)
+	@test -z "$(DESTDIR)/$(MANDIR)/man8" || mkdir -p "$(DESTDIR)/$(MANDIR)/man8"
+	@$(INSTALL) -c -m 0644 $<.8 $(DESTDIR)/$(MANDIR)/man8
 
 uninstall:
-	rm -f $(DESTDIR)/$(BINDIR)/$(PROGRAM_NAME)
-	rm -f $(DESTDIR)/$(MANDIR)/man8/$(PROGRAM_NAME).8
+	@$(RM) $(DESTDIR)/$(BINDIR)/$(EXEC)
+	@$(RM) $(DESTDIR)/$(MANDIR)/man8/$(EXEC).8
 
 install-strip:
-	$(MAKE) INSTALL_PROGRAM="$(INSTALL_PROGRAM) -s" install
+	@$(MAKE) INSTALL="$(INSTALL) -s" install
 
 TAGS:
-	ctags *.[ch]
+	@ctags *.[ch]
 
 clean:
-	rm -f $(PROGRAM_NAME) *.o
+	@$(RM) $(EXEC) $(OBJS)
 
 distclean: clean
-	rm -f *~ *.bak *.map *.d DEADJOE *.gdb *.elf core core.*
+	@$(RM) *~ *.bak *.o *.map *.d DEADJOE *.gdb *.elf core core.*
 
 package:
-	dpkg-buildpackage -b -uc -tc
+	@dpkg-buildpackage -b -uc -tc
 
 dist:
-	mkdir -p $(PROGRAM_NAME)-$(VERSION_SH)
-	cp AUTHORS COPYING Makefile *.[ch] $(PROGRAM_NAME).8 $(PROGRAM_NAME).spec $(PROGRAM_NAME)-$(VERSION_SH)/
-	tar -czf $(PROGRAM_NAME)-$(VERSION_SH).tar.gz $(PROGRAM_NAME)-$(VERSION_SH)
-	rm -rf $(PROGRAM_NAME)-$(VERSION_SH)
+	@mkdir -p $(PKG)
+	@cp -a AUTHORS COPYING Makefile *.[ch] $(EXEC).8 $(EXEC).spec debian $(PKG)/
+	@tar cfz $(ARCHIVE) $(PKG)
+	@rm -rf $(PKG)
 
 installdirs:
-	mkdir -p "$(DESTDIR)/bin"
+	@mkdir -p "$(DESTDIR)/bin"
