@@ -513,7 +513,7 @@ error_unknown_msg_type:
  * without client_id, ...).
  */
 static int
-omping_process_answer_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
+omping_process_answer_msg(struct omping_instance *instance, const char *UNUSED(msg), size_t msg_len,
     const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from, uint8_t ttl,
     enum sf_cast_type cast_type, struct timeval rp_timestamp)
 {
@@ -770,7 +770,7 @@ omping_process_query_msg(struct omping_instance *instance, const char *msg, size
  * without client_id, ...).
  */
 static int
-omping_process_response_msg(struct omping_instance *instance, const char *msg, size_t msg_len,
+omping_process_response_msg(struct omping_instance *instance, const char *UNUSED(msg), size_t UNUSED(msg_len),
     const struct msg_decoded *msg_decoded, const struct sockaddr_storage *from)
 {
 	struct rh_item *rh_item;

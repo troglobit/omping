@@ -200,7 +200,7 @@ multiple_match_error:
  */
 void
 aii_ifa_local_to_ai(struct aii_list *aii_list, struct ai_item *ai_local,
-    const struct ifaddrs *ifa_local, int ip_ver, struct ai_item *local_addr, int *single_addr)
+    const struct ifaddrs *ifa_local, int UNUSED(ip_ver), struct ai_item *local_addr, int *single_addr)
 {
 	size_t addr_len;
 	uint16_t port;

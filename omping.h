@@ -41,6 +41,13 @@ extern "C" {
 #define DEFAULT_TTL		64
 
 /*
+ * Mark a function variable as unused, useful for generic callbacks
+ */
+#ifndef UNUSED
+#define UNUSED(x) UNUSED_ ## x __attribute__ ((unused))
+#endif
+
+/*
  * Default Wait For Finish multiply constant. wait_time is multiplied with following
  * value.
  */

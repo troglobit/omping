@@ -64,7 +64,7 @@ clisig_register_handlers(void)
  * Handler for SIGINFO signal
  */
 static void
-siginfo_handler(int sig)
+siginfo_handler(int sig __attribute__ ((unused)))
 {
 
 	clistate_request_stats_display();
@@ -74,7 +74,7 @@ siginfo_handler(int sig)
  * Handler for SIGINT signal
  */
 static void
-sigint_handler(int sig)
+sigint_handler(int sig __attribute__ ((unused)))
 {
 
 	clistate_request_exit();

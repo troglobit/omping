@@ -134,7 +134,7 @@ ms_init(int ucast_socket, const struct sockaddr_storage *remote_addr,
 int
 ms_query(int ucast_socket, const struct sockaddr_storage *remote_addr,
     const struct sockaddr_storage *mcast_addr, uint32_t seq_num, const char *client_id,
-    const char *ses_id, size_t ses_id_len)
+    const char *ses_id, size_t UNUSED(ses_id_len))
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	char msg[MAX_MSG_SIZE];
