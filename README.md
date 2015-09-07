@@ -23,14 +23,14 @@ Features:
 Installation
 ------------
 
-**Fedora**
+### In RedHat/Fedora
 
 Omping is available as an .rpm package in Fedora.  Use yum for
 installation:
 
     $ yum install omping
 
-**Debian/Ubuntu**
+### In Debian/Ubuntu
 
 Not yet available in Debian or Ubuntu, but a .deb package can be built
 using the sources (below):
@@ -40,7 +40,7 @@ using the sources (below):
 There are also unsigned packages available from <ftp://troglobit.com>
 for adventurous users.
 
-**Source**
+### From Source
 
 For stable version, download the latest official release from Fedora:
 <https://fedorahosted.org/releases/o/m/omping/omping-0.0.4.tar.gz>
@@ -69,4 +69,12 @@ possible problem.
 Origin & References
 -------------------
 
-This project was initially developed by ​Jan Friesse for ​Red Hat.
+This project was initially developed by Jan Friesse for Red Hat.  The
+GitHub hosting at https://github.com/troglobit/omping/ is mainly for
+packaging to Debian/Ubuntu.
+
+<!--
+  -- Local Variables:
+  -- mode: markdown
+  -- End:
+  -->
