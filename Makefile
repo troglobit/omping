@@ -54,7 +54,7 @@ install-exec: $(EXEC)
 
 install-data:
 	@test -z "$(DESTDIR)/$(MANDIR)/man8" || mkdir -p "$(DESTDIR)/$(MANDIR)/man8"
-	@$(INSTALL) -c -m 0644 $<.8 $(DESTDIR)/$(MANDIR)/man8
+	@$(INSTALL) -c -m 0644 $(EXEC).8 $(DESTDIR)/$(MANDIR)/man8
 
 install: install-exec install-data
 
