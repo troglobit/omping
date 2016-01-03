@@ -48,11 +48,15 @@ $(EXEC): $(OBJS)
 	@printf "  LINK    $@\n"
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
-install: $(EXEC)
+install-exec: $(EXEC)
 	@test -z "$(DESTDIR)/$(BINDIR)" || mkdir -p "$(DESTDIR)/$(BINDIR)"
 	@$(INSTALL) -c $< $(DESTDIR)/$(BINDIR)
+
+install-data:
 	@test -z "$(DESTDIR)/$(MANDIR)/man8" || mkdir -p "$(DESTDIR)/$(MANDIR)/man8"
 	@$(INSTALL) -c -m 0644 $<.8 $(DESTDIR)/$(MANDIR)/man8
+
+install: install-exec install-data
 
 uninstall:
 	@$(RM) $(DESTDIR)/$(BINDIR)/$(EXEC)
@@ -75,7 +79,7 @@ package:
 
 dist:
 	@mkdir -p $(PKG)
-	@cp -a AUTHORS COPYING Makefile *.[ch] $(EXEC).8 $(EXEC).spec debian $(PKG)/
+	@cp -a README.md AUTHORS COPYING Makefile *.[ch] $(EXEC).8 $(EXEC).spec debian extras $(PKG)/
 	@tar cfz $(ARCHIVE) $(PKG)
 	@rm -rf $(PKG)
 

@@ -1,3 +1,9 @@
+omping (0.0.5-2) unstable; urgency=low
+
+  * Minor version bump for actual 0.0.5 release.
+
+ -- Joachim Nilsson <troglobit@gmail.com>  Thu, 04 Jan 2016 00:41:09 +0200
+
 omping (0.0.5-1) unstable; urgency=low
 
   * First Debian package, based on the last GIT sources from Fedora HOSTED,
