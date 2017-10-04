@@ -32,6 +32,11 @@ RM               = rm -f
 CC              ?= $(CROSS)$(CC)
 INSTALL         ?= install
 
+OS := $(shell uname)
+ifeq ($(OS),Darwin)
+CPPFLAGS += -D__APPLE_USE_RFC_3542 -DMAC_OSX
+endif
+
 
 all: $(EXEC)
 

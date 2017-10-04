@@ -21,6 +21,9 @@
 #ifndef _RSFUNC_H_
 #define _RSFUNC_H_
 
+#ifdef MAC_OSX
+#include <netinet/in.h>
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
