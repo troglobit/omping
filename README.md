@@ -48,8 +48,8 @@ for adventurous users.
 
 ### From Source
 
-For stable version, download the latest release at
-<https://github.com/troglobit/omping/releases>
+Latest releases at <https://github.com/troglobit/omping/releases>, for
+older releases, see <https://github.com/jfriesse/omping/releases>.
 
 For latest git, use
 
