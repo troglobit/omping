@@ -43,11 +43,11 @@ for adventurous users.
 ### From Source
 
 For stable version, download the latest official release from Fedora:
-<https://fedorahosted.org/releases/o/m/omping/omping-0.0.4.tar.gz>
+<https://github.com/jfriesse/omping/releases/download/0.0.4/omping-0.0.4.tar.gz>
 
 For latest git, use
 
-    $ git clone git://git.fedorahosted.org/git/omping.git
+    $ git clone git://github.com/jfriesse/omping.git
 	$ cd omping
 	$ make
 
