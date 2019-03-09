@@ -20,6 +20,12 @@ Features:
 - Any-source and Source-specific Multicast 
 
 
+Articles
+--------
+
+- <https://www.ibm.com/support/knowledgecenter/en/SSWMAJ_2.0.0/com.ibm.ism.doc/Administering/ad00943_.html>
+
+
 Installation
 ------------
 
