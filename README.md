@@ -42,13 +42,13 @@ for adventurous users.
 
 ### From Source
 
-For stable version, download the latest official release from Fedora:
-<https://github.com/jfriesse/omping/releases/download/0.0.4/omping-0.0.4.tar.gz>
+For stable version, download the latest release at
+<https://github.com/troglobit/omping/releases>
 
 For latest git, use
 
-    $ git clone git://github.com/jfriesse/omping.git
-	$ cd omping
+    $ git clone https://github.com/troglobit/omping.git
+	$ cd omping/
 	$ make
 
 
@@ -62,8 +62,3 @@ GitHub: <https://github.com/jfriesse/omping>
 The https://github.com/troglobit/omping/ project is mainly for packaging
 to Debian/Ubuntu but also has some minor fixes.
 
-<!--
-  -- Local Variables:
-  -- mode: markdown
-  -- End:
-  -->
