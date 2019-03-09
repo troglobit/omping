@@ -52,26 +52,15 @@ For latest git, use
 	$ make
 
 
-Mailing List
-------------
-
-The omping mailing list should be used for all communication relating to
-Open Multicast Ping.  Please send mail to the mailing list instead of
-developers directly.  This allows more then one person to respond to
-information requests and allows everyone to see the solution to a
-possible problem.
-
-- ​[Subscribe mailing list](https://lists.fedorahosted.org/mailman/listinfo/omping)
-- Send mail to mailing list: omping@…
-- ​[View list archives](https://lists.fedorahosted.org/pipermail/omping/)
-
-
 Origin & References
 -------------------
 
-This project was initially developed by Jan Friesse for Red Hat.  The
-GitHub hosting at https://github.com/troglobit/omping/ is mainly for
-packaging to Debian/Ubuntu.
+This project was initially developed by Jan Friesse for Red Hat.  It was
+hosted at the now defunct fedorahosted.org, and can now be found on Jan's
+GitHub: <https://github.com/jfriesse/omping>
+
+The https://github.com/troglobit/omping/ project is mainly for packaging
+to Debian/Ubuntu but also has some minor fixes.
 
 <!--
   -- Local Variables:
